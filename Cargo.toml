@@ -1,0 +1,11 @@
+[package]
+name = "functional"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# malachite-nz = "0.6.1"
+lazy_rc = "0.1.3"
+either = "1.15.0"
+memoize = "0.5.1"
+bytemuck = "1.23.2"
