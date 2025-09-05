@@ -1,6 +1,7 @@
 
 use crate::ctypes::{ContainedTerm, Res, Term::*};
 
+/*
 #[derive(Debug)]
 pub struct Numbers {
     add: ContainedTerm,
@@ -37,3 +38,4 @@ impl Numbers {
         Self::new_internal().unwrap()
     }
 }
+*/

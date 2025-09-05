@@ -1,3 +1,4 @@
+use crate::ctypes::Naming;
 use crate::ctypes::Res;
 use crate::ctypes::err_str;
 use crate::ctypes::opt_err;
@@ -10,24 +11,32 @@ use std::time::Duration;
 
 #[derive(Clone)]
 struct DisplayContext {
+    used: HashMap<String,usize>,
     names: Vec<String>,
+}
+
+fn subscriptify(mut s: usize) -> String {
+    let mut digits = Vec::new();
+    while (s>0) {
+        let digit = s % 10;
+        digits.push(digit);
+        s /= 10;
+    }
+    digits.into_iter().rev().map(|v|{
+        ['\u{2080}','\u{2081}','\u{2082}','\u{2083}','\u{2084}','\u{2085}','\u{2086}','\u{2087}','\u{2088}','\u{2089}'][v]
+    }).collect()
 }
 
 impl DisplayContext {
     fn new() -> Self {
-        Self {names: Vec::new()}
+        Self {used: HashMap::new(), names: Vec::new()}
     }
-    fn next(mut self) -> Self {
-        let mut idx = self.names.len();
-        let mut idxs = Vec::new();
-        loop {
-            let rem = (idx % 26) as u8;
-            idx /= 26;
-            idxs.push((0x61u8 + rem) as char);
-            if (idx==0) {break;}
-        }
-        let s: String = idxs.into_iter().collect();
-        self.names.push(s);
+    fn add_name(mut self,name: Naming) -> Self {
+        let mut name = name.0;
+        let v = self.used.entry(name.clone()).or_insert(0);
+        name.push_str(&subscriptify(*v));
+        self.names.push(name);
+        *v+=1;
         self
     }
     fn last(&self) -> Option<&String> {
@@ -111,9 +120,9 @@ fn pretty_print(t: ContainedTerm, context: DisplayContext, mut tc: TypingContext
             }
             output.push_str(context.get(x).unwrap())
         },
-        Lam(ty,body) => {
+        Lam(ty,body,name) => {
             let oc = context.clone();
-            let context = context.next();
+            let context = context.add_name(name);
             let name = context.last().unwrap().clone();
             output.push('(');
             output.push_str(&name);
@@ -124,9 +133,9 @@ fn pretty_print(t: ContainedTerm, context: DisplayContext, mut tc: TypingContext
             pretty_print(body,context,tc,output,aliases)?;
             output.push(')');
         }
-        Pi(ty,body) => {
+        Pi(ty,body,name) => {
             let oc = context.clone();
-            let context = context.next();
+            let context = context.add_name(name);
             let name = context.last().unwrap().clone();
             output.push('(');
             output.push_str(&name);

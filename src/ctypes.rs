@@ -495,10 +495,10 @@ impl Term {
                 match term.clone().typed()?.pop() {Nat => (), _ => err_str("term is not a nat")?};
                 let u = Universe(n).ctn()?;
                 let nat = Nat.ctn()?;
-                let family = Pi(nat,u).ctn()?;
+                let family = Pi(nat,u,"index".into()).ctn()?;
                 let initial = App(DeBrujin(0u8.into(), family.clone()).ctn()?,Zero.ctn()?).ctn()?;
-                let next = Pi(Nat.ctn()?,Pi(App(DeBrujin(2u8.into(), family.clone()).ctn()?,DeBrujin(0u8.into(), Nat.ctn()?).ctn()?).ctn()?,App(DeBrujin(3u8.into(), family.clone()).ctn()?,Succ(DeBrujin(1u8.into(), Nat.ctn()?).ctn()?).ctn()?).ctn()?).ctn()?).ctn()?;
-                Pi(family.clone(),Pi(initial,Pi(next,App(DeBrujin(2u8.into(), family.clone()).ctn()?,term.push_scope(0u8.into())?.push_scope(0u8.into())?.push_scope(0u8.into())?).ctn()?).ctn()?).ctn()?).ctn()?
+                let next = Pi(Nat.ctn()?,Pi(App(DeBrujin(2u8.into(), family.clone()).ctn()?,DeBrujin(0u8.into(), Nat.ctn()?).ctn()?).ctn()?,App(DeBrujin(3u8.into(), family.clone()).ctn()?,Succ(DeBrujin(1u8.into(), Nat.ctn()?).ctn()?).ctn()?).ctn()?,"cur".into()).ctn()?,"n".into()).ctn()?;
+                Pi(family.clone(),Pi(initial,Pi(next,App(DeBrujin(2u8.into(), family.clone()).ctn()?,term.push_scope(0u8.into())?.push_scope(0u8.into())?.push_scope(0u8.into())?).ctn()?,"suc".into()).ctn()?,"init".into()).ctn()?,"fam".into()).ctn()?
             },
             II => Universe(0u8.into()).ctn()?, // TODO: Review the possible issues with this
             IA => II.ctn()?,
@@ -508,11 +508,11 @@ impl Term {
             EqLam(term) => {
                 let fa = App(term.clone(),IA.ctn()?).ctn()?;
                 let fb = App(term.clone(),IB.ctn()?).ctn()?;
-                let f = match term.typed()?.pop() {Pi(i,F)=>Lam(i,F).ctn()?, _ => err_str("f is not a function")?};
+                let f = match term.typed()?.pop() {Pi(i,F,name)=>Lam(i,F,name).ctn()?, _ => err_str("f is not a function")?};
                 Eq(f,fa,fb).ctn()?
             },
             Eq(f,fa,fb) => {
-                match f.pop() {Lam(_,f)=>Pi(II.ctn()?,f).typed()?, _ => err_str("f is not a function")?}
+                match f.pop() {Lam(_,f,name)=>Pi(II.ctn()?,f,name).typed()?, _ => err_str("f is not a function")?}
             },
             EqUw(e,i) => {
                 match e.typed()?.pop() {
@@ -533,19 +533,19 @@ impl Term {
             Pair(f,a,b) => Sig(f).ctn()?,
             SigInd(s, n) => {
                 let f = match s.clone().typed()?.pop() {Sig(f)=>f,_=>err_str("impossible")?};
-                let arg = match f.clone().typed()?.pop() {Pi(ty, _)=>ty,_=>err_str("impossible")?};
+                let arg = match f.clone().typed()?.pop() {Pi(ty, _,_)=>ty,_=>err_str("impossible")?};
                 
-                let input = pi_helper_poly([],s.clone().typed()?,[n],|[],val,[n]|{Universe(n).ctn()})?;
+                let input = pi_helper_poly([],s.clone().typed()?,"sig",[n],|[],val,[n]|{Universe(n).ctn()})?;
                 
 
                 // ∀ T: Sig F -> Type, q: (∀ a: A, b: B a, T (sig B a b)), T s
-                pi_helper([s,f,arg],input,|[s,f,arg],family|{
-                    let initial = pi_helper([f.clone(),family.clone()],arg,|[f,family],a|{
-                        pi_helper([family,f.clone(),a.clone()],App(f,a).ctn()?,|[family,f,a],b|{
+                pi_helper([s,f,arg],input,"fam",|[s,f,arg],family|{
+                    let initial = pi_helper([f.clone(),family.clone()],arg,"sig_a",|[f,family],a|{
+                        pi_helper([family,f.clone(),a.clone()],App(f,a).ctn()?,"sig_b",|[family,f,a],b|{
                             App(family,Pair(f,a,b).ctn()?).ctn()
                         })
                     })?;
-                    pi_helper([family,s],initial,|[family,s],_|{
+                    pi_helper([family,s],initial,"init",|[family,s],_|{
                         App(family,s).ctn()
                     })
                 })?
@@ -558,10 +558,10 @@ impl Term {
     fn reduce(self) -> Res<ContainedTerm> {
         Ok(match self {
             App(a,b) => { // a and b are already fully reduced
-                match a.clone().typed()?.pop() {Pi(arg,_out) => {
+                match a.clone().typed()?.pop() {Pi(arg,_out,_) => {
                     if (arg.clone().check_equal(b.clone().typed()?)) {
                         match a.pop() {
-                            Lam(_arg,ret) => ret.subst(b,Natural::from(0u8))?,
+                            Lam(_arg,ret,_) => ret.subst(b,Natural::from(0u8))?,
                             a => App(a.ctn()?,b).ctn_unchecked(),
                         }
                     } else {err_string(format!("application is not well typed\narg type (expected): {:?}\narg type (actual): {:?}",arg,b.clone().typed()?))?}
@@ -571,16 +571,16 @@ impl Term {
                 match term.clone().pop() {
                     Zero => {
                         let u = Universe(un).ctn()?;
-                        let family = Pi(Nat.ctn()?,u).ctn()?;
+                        let family = Pi(Nat.ctn()?,u,"index".into()).ctn()?;
                         let initial = App(DeBrujin(0u8.into(), family.clone()).ctn()?,Zero.ctn()?).ctn()?;
-                        let next = Pi(Nat.ctn()?,Pi(App(DeBrujin(2u8.into(), family.clone()).ctn()?,DeBrujin(0u8.into(), Nat.ctn()?).ctn()?).ctn()?,App(DeBrujin(3u8.into(), family.clone()).ctn()?,Succ(DeBrujin(1u8.into(), Nat.ctn()?).ctn()?).ctn()?).ctn()?).ctn()?).ctn()?;
-                        Lam(family,Lam(initial.clone(),Lam(next,DeBrujin(1u8.into(), initial).ctn()?).ctn()?).ctn()?).ctn_unchecked()
+                        let next = Pi(Nat.ctn()?,Pi(App(DeBrujin(2u8.into(), family.clone()).ctn()?,DeBrujin(0u8.into(), Nat.ctn()?).ctn()?).ctn()?,App(DeBrujin(3u8.into(), family.clone()).ctn()?,Succ(DeBrujin(1u8.into(), Nat.ctn()?).ctn()?).ctn()?).ctn()?,"cur".into()).ctn()?,"n".into()).ctn()?;
+                        Lam(family,Lam(initial.clone(),Lam(next,DeBrujin(1u8.into(), initial).ctn()?,"next".into()).ctn()?,"init".into()).ctn()?,"fam".into()).ctn_unchecked()
                     }
                     Succ(v) => {
                         let u = Universe(un.clone()).ctn()?;
-                        let family = Pi(Nat.ctn()?,u).ctn()?;
+                        let family = Pi(Nat.ctn()?,u,"index".into()).ctn()?;
                         let initial = App(DeBrujin(0u8.into(), family.clone()).ctn()?,Zero.ctn()?).ctn()?;
-                        let next = Pi(Nat.ctn()?,Pi(App(DeBrujin(2u8.into(), family.clone()).ctn()?,DeBrujin(0u8.into(), Nat.ctn()?).ctn()?).ctn()?,App(DeBrujin(3u8.into(), family.clone()).ctn()?,Succ(DeBrujin(1u8.into(), Nat.ctn()?).ctn()?).ctn()?).ctn()?).ctn()?).ctn()?;
+                        let next = Pi(Nat.ctn()?,Pi(App(DeBrujin(2u8.into(), family.clone()).ctn()?,DeBrujin(0u8.into(), Nat.ctn()?).ctn()?).ctn()?,App(DeBrujin(3u8.into(), family.clone()).ctn()?,Succ(DeBrujin(1u8.into(), Nat.ctn()?).ctn()?).ctn()?).ctn()?,"cur".into()).ctn()?,"n".into()).ctn()?;
                         let base = NatInd(v.clone(),un).reduce()?;
                         Lam(family.clone(),Lam(initial.clone(),Lam(next.clone(),
                             App(App(DeBrujin(0u8.into(), next.clone().push_scope(0u8.into())?).ctn()?,v).ctn()?,
@@ -588,7 +588,7 @@ impl Term {
                                     DeBrujin(2u8.into(),family.push_scope(0u8.into())?.push_scope(0u8.into())?.push_scope(0u8.into())?).ctn()?).ctn()?,
                                     DeBrujin(1u8.into(),initial.push_scope(0u8.into())?.push_scope(0u8.into())?).ctn()?).ctn()?,
                                     DeBrujin(0u8.into(), next.push_scope(0u8.into())?).ctn()?).ctn()?)
-                                .ctn()?).ctn()?).ctn()?).ctn_unchecked()
+                                .ctn()?,"next".into()).ctn()?,"init".into()).ctn()?,"fam".into()).ctn_unchecked()
                     }
                     _ => match term.clone().typed()?.pop() {
                         Nat => NatInd(term,un).ctn_unchecked(),
@@ -600,15 +600,15 @@ impl Term {
                 match s.clone().pop() {
                     Pair(f,a,b) => {
                         // SigInd(Pair(F,a,b)) = λ T: Sig F -> Type, q: (∀ a: A, b: F a, T (sig F a b)), q a b
-                        let arg = match f.clone().typed()?.pop() {Pi(ty, _)=>ty,_=>err_str("impossible")?};
-                        let input = pi_helper([f.clone()],arg.clone(),|[f],val|{App(f,val).ctn()})?;
-                        lam_helper([f,a,b,arg],input,|[f,a,b,arg],family|{
-                            let initial = pi_helper([f.clone(),family.clone()],arg,|[f,family],a|{
-                                pi_helper([family,f.clone(),a.clone()],App(f,a).ctn()?,|[family,f,a],b|{
+                        let arg = match f.clone().typed()?.pop() {Pi(ty, _,_)=>ty,_=>err_str("impossible")?};
+                        let input = pi_helper([f.clone()],arg.clone(),"sig_a",|[f],val|{App(f,val).ctn()})?;
+                        lam_helper([f,a,b,arg],input,"fam",|[f,a,b,arg],family|{
+                            let initial = pi_helper([f.clone(),family.clone()],arg,"sig_a",|[f,family],a|{
+                                pi_helper([family,f.clone(),a.clone()],App(f,a).ctn()?,"sig_b",|[family,f,a],b|{
                                     App(family,Pair(f,a,b).ctn()?).ctn()
                                 })
                             })?;
-                            lam_helper([a,b],initial,|[a,b],q|{
+                            lam_helper([a,b],initial,"init",|[a,b],q|{
                                 App(App(q,a).ctn()?,b).ctn()
                             })
                         })?
@@ -651,7 +651,7 @@ impl Term {
             }
             EqLam(f) => {
                match f.clone().pop() {
-                    Lam(ty,body) => match body.pop() {
+                    Lam(ty,body,_) => match body.pop() {
                         EqUw(e,x) => match (e.check_const(0u8.into())) {
                             Ok(e) => match x.pop() {
                                 DeBrujin(n, val) => if (n==Natural::from(0u8) && val == ty) {e} else {
@@ -669,29 +669,29 @@ impl Term {
             Transp(f,x) => match f.clone().pop() {
                 EqLam(g) => if (g.check_refl(IA.ctn()?)?.is_some()) {x} else {Transp(f,x).ctn_unchecked()}
                 HComp { family, base, first, second } => {
-                    let lfirst = Lam(II.ctn().unwrap(),first).ctn()?;
-                    let lbase = Lam(II.ctn().unwrap(),base).ctn()?;
-                    let lsecond = Lam(II.ctn().unwrap(),second).ctn()?;
+                    let lfirst = Lam(II.ctn().unwrap(),first,"i".into()).ctn()?;
+                    let lbase = Lam(II.ctn().unwrap(),base,"i".into()).ctn()?;
+                    let lsecond = Lam(II.ctn().unwrap(),second,"i".into()).ctn()?;
                     // family: ContainedTerm, // II -> II -> Type
                     // base: ContainedTerm, // ?a = ?b ? family I₀ i
                     // first: ContainedTerm, // ?a = ?c ? family i I₀
                     // second: ContainedTerm, // ?b = ?d ? family i I₁
                     // given x: ?c find y: ?d.
                     // x over sym first, then over base, then over second
-                    Transp(lsecond,Transp(lbase,Transp(lam_helper([lfirst],II.ctn().unwrap(),|[lfirst],i|{
+                    Transp(lsecond,Transp(lbase,Transp(lam_helper([lfirst],II.ctn().unwrap(),"i",|[lfirst],i|{
                         App(lfirst,Not(i).ctn()?).ctn()
                     })?,x).ctn()?).ctn()?).ctn()?
                 }
-                Lam(ii,g) => match g.pop() { // g is the output
-                    Pi(ty,body) => {
+                Lam(ii,g,iname) => match g.pop() { // g is the output
+                    Pi(ty,body,tyname) => {
                         let func = x;
-                        let lty = Lam(ii.clone(),ty.clone()).ctn().unwrap();
-                        let lbody = Lam(ii.clone(),Lam(ty.clone(),body).ctn().unwrap()).ctn().unwrap();
+                        let lty = Lam(ii.clone(),ty.clone(),iname.clone()).ctn().unwrap();
+                        let lbody = Lam(ii.clone(),Lam(ty.clone(),body,tyname).ctn().unwrap(),iname.clone()).ctn().unwrap();
                         let ty_IB = App(lty.clone(),IB.ctn()?).ctn()?;
-                        let sym_lty = lam_helper([lty.clone()],ii.clone(),|[lty],i|{
+                        let sym_lty = lam_helper([lty.clone()],ii.clone(),iname.clone(),|[lty],i|{
                             App(lty,Not(i).ctn()?).ctn()
                         })?;
-                        lam_helper([lty,sym_lty,func],ty_IB.clone(),|[lty,sym_lty,func],x|{
+                        lam_helper([lty,sym_lty,func],ty_IB.clone(),"input_IB",|[lty,sym_lty,func],x|{
                             let input_IA = Transp(sym_lty,x.clone()).ctn()?;
                             // typed ty{I₀}
                             // now we have output_IA = x input
@@ -710,8 +710,8 @@ impl Term {
                             // i = 1 -> transp (refl (p 0)) x
                             // fun i => func i (transp (fun j => p (not j) ∧ (not i)) x)
                             // has I₀ ⊢ body{I₀,input_IA}, I₁ ⊢ body{I₁,input_IB}
-                            let path = lam_helper([lty,func,x],II.ctn()?,|[lty,func,x],i|{
-                                App(App(func,i.clone()).ctn()?,Transp(lam_helper([lty,i],II.ctn()?,|[lty,i],j|{
+                            let path = lam_helper([lty,func,x],II.ctn()?,"i",|[lty,func,x],i|{
+                                App(App(func,i.clone()).ctn()?,Transp(lam_helper([lty,i],II.ctn()?,"j",|[lty,i],j|{
                                     App(lty,And(Not(i).ctn()?,Not(j).ctn()?).ctn()?).ctn()
                                 })?,x).ctn()?).ctn()
                             })?;
@@ -721,21 +721,21 @@ impl Term {
                     }
                     Eq(f,a,b) => {
                         // x: IA = lb IA ? lf IA
-                        let lf = Lam(ii.clone(),f).ctn()?;
-                        let la = Lam(ii.clone(),a).ctn()?;
-                        let lb = Lam(ii.clone(),b).ctn()?;
+                        let lf = Lam(ii.clone(),f,"i".into()).ctn()?;
+                        let la = Lam(ii.clone(),a,"j".into()).ctn()?;
+                        let lb = Lam(ii.clone(),b,"j".into()).ctn()?;
                         HComp { family: lf, base: x, first: la, second: lb }.ctn()?
                     }
                     Sig(f) => {
                         let (lfa,ty0l,ty1l) = match f.clone().typed()?.pop() {
-                            Pi(ty,ty1) => (Lam(ii.clone(),ty.clone()).ctn()?,{
+                            Pi(ty,ty1,name) => (Lam(ii.clone(),ty.clone(),name).ctn()?,{
                                 //match ty.typed()?.pop() {Universe(n) => n, _ => None?}
                             },{
                                 //match ty1.typed()?.pop() {Universe(n) => n, _ => None?}
                             }),
                             _ => err_str("f is not a function!")?
                         };
-                        let lf = Lam(ii,f.clone()).ctn()?;
+                        let lf = Lam(ii,f.clone(),iname).ctn()?;
                         // lfa : II -> Type
                         // lf: II -> lfa i -> Type
                         // a₀: lfa I₀
@@ -751,8 +751,8 @@ impl Term {
                         let a0 = App(sig_ex0(family0.clone())?,x.clone()).ctn()?;
                         let b0 = App(sig_ex1(family0)?,x).ctn()?;
                         let a1 = Transp(lfa.clone(),a0.clone()).ctn()?;
-                        let p = lam_helper([lf,a0,lfa],II.ctn()?,|[lf,a0,lfa],i|{
-                            App(App(lf,i.clone()).ctn()?,Transp(lam_helper([i,lfa],II.ctn()?,|[i,lfa],j|{
+                        let p = lam_helper([lf,a0,lfa],II.ctn()?,"i",|[lf,a0,lfa],i|{
+                            App(App(lf,i.clone()).ctn()?,Transp(lam_helper([i,lfa],II.ctn()?,"j",|[i,lfa],j|{
                                 App(lfa,And(i,j).ctn()?).ctn()
                             })?,a0).ctn()?).ctn()
                         })?;
@@ -764,18 +764,18 @@ impl Term {
                 }
                 g => Transp(f,x).ctn_unchecked()
             }
-            Lam(ty,body) => {
+            Lam(ty,body,tyname) => {
                 match body.clone().pop() {
                     App(f,x) => match (f.check_const(0u8.into())) {
                         Ok(f) => match x.pop() {
                             DeBrujin(n, val) => if (n==Natural::from(0u8) && val == ty) {f} else {
-                                Lam(ty,body).ctn_unchecked()
+                                Lam(ty,body,tyname).ctn_unchecked()
                             }
-                            _ => Lam(ty,body).ctn_unchecked()
+                            _ => Lam(ty,body,tyname).ctn_unchecked()
                         }
-                        Err(_) => Lam(ty,body).ctn_unchecked()
+                        Err(_) => Lam(ty,body,tyname).ctn_unchecked()
                     }
-                    _ => Lam(ty,body).ctn_unchecked()
+                    _ => Lam(ty,body,tyname).ctn_unchecked()
                 }
             }
             v => v.ctn_unchecked(),
@@ -792,10 +792,10 @@ impl Term {
             DeBrujin(natural, contained_term) => {
                 check_eq(context.get(unwrap_natural(natural)),Some(&contained_term))
             },
-            Lam(contained_term, contained_term1) => {contained_term.clone().well_typed(context.clone())?; contained_term1.well_typed(context.push(contained_term)?)},
-            Pi(contained_term, contained_term1) => {contained_term.clone().well_typed(context.clone())?; contained_term1.well_typed(context.push(contained_term)?)},
+            Lam(contained_term, contained_term1,_) => {contained_term.clone().well_typed(context.clone())?; contained_term1.well_typed(context.push(contained_term)?)},
+            Pi(contained_term, contained_term1,_) => {contained_term.clone().well_typed(context.clone())?; contained_term1.well_typed(context.push(contained_term)?)},
             App(f, x) => {f.clone().well_typed(context.clone())?; x.clone().well_typed(context)?; match f.typed()?.pop() {
-                Pi(arg,_) => check_eq(x.typed(), Ok(arg)),
+                Pi(arg,_,_) => check_eq(x.typed(), Ok(arg)),
                 _ => err_str("f is not a function!"),
             }},
             Universe(natural) => Ok(()),
@@ -809,7 +809,7 @@ impl Term {
             Not(x) => {check_eq(x.clone().typed()?, II.ctn()?); x.well_typed(context)},
             And(x,y) => {check_eq(x.clone().typed(),II.ctn())?; check_eq(y.clone().typed(), II.ctn())?; x.well_typed(context.clone())?; y.well_typed(context)},
             EqLam(term) => {(match term.clone().typed()?.pop() {
-                Pi(arg,_) => check_eq(arg, II.ctn()?),
+                Pi(arg,_,_) => check_eq(arg, II.ctn()?),
                 _ => err_str("term is not a lambda!"),
             })?; term.well_typed(context)},
             Eq(f,x,y) => {f.well_typed(context.clone())?; x.well_typed(context.clone())?; y.well_typed(context)},
@@ -822,12 +822,12 @@ impl Term {
                 match base.typed()?.pop() {Eq(f,a,b) => {
                     check_eq(f.clone(),App(family,IA.ctn().unwrap()).ctn()?)?;
                     match first.typed()?.pop() {Eq(g,a_,_) => {
-                        check_eq(a_,a)?; check_eq(g,lam_helper([f.clone()], II.ctn().unwrap(), |[f],i|{
+                        check_eq(a_,a)?; check_eq(g,lam_helper([f.clone()], II.ctn().unwrap(),"i", |[f],i|{
                             App(App(f,i).ctn()?,IA.ctn().unwrap()).ctn()
                         })?)?;
                     }, _ => err_str("first is not an equality")?}
                     match second.typed()?.pop() {Eq(g,b_,_) => {
-                        check_eq(b_,b)?; check_eq(g, lam_helper([f.clone()], II.ctn().unwrap(), |[f],i|{
+                        check_eq(b_,b)?; check_eq(g, lam_helper([f.clone()], II.ctn().unwrap(), "i",|[f],i|{
                             App(App(f,i).ctn()?,IB.ctn().unwrap()).ctn()
                         })?)
                     }, _ => err_str("second is not an equality")}

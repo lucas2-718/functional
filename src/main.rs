@@ -4,6 +4,7 @@ use crate::ctypes::Res;
 mod unique;
 //mod dtypes;
 mod ctypes;
+mod notation;
 //mod parse;
 mod display;
 mod numbers;
