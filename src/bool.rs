@@ -1,11 +1,11 @@
-use crate::{ctypes::{ContainedTerm, ErrorType, Natural, Res, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{refl, straight_eq}};
+use crate::{ctypes::{ContainedTerm, ErrorType, Natural, Res, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, straight_eq, transport_eq}, numbers};
 
 pub struct BoolData {
-    trim: ContainedTerm,
-    bool_type: ContainedTerm,
-    bool_false: ContainedTerm,
-    bool_true: ContainedTerm,
-    bool_fam: ContainedTerm,
+    pub trim: ContainedTerm,
+    pub bool_type: ContainedTerm,
+    pub bool_false: ContainedTerm,
+    pub bool_true: ContainedTerm,
+    pub bool_fam: ContainedTerm,
 }
 
 impl BoolData {
@@ -43,7 +43,7 @@ impl BoolData {
                 // (hyp : 0 = 0) -> (vf: fam (0, refl 0)) -> (vt: fam (1, refl 0)) : fam (0, hyp) := transport vt over refl 0 = hyp
                 // (hyp : 0 = 0) -> (vf: fam (0, refl 0)) -> (vt: fam (1, refl 0)) : fam (1, hyp) := transport vt over refl 0 = hyp
                 // (hyp : 0 = 1) -> _ -> _ -> fam (2 + n, hyp) := exfalso on hyp
-                let indfam = lam_helper([bfalse,btrue,fam,trim,bfam], Nat.ctn()?, "n", |[bfalse,btrue,fam,trim,bfam],n|{
+                let indfam = lam_helper([bfalse.clone(),btrue.clone(),fam.clone(),trim,bfam.clone()], Nat.ctn()?, "n", |[bfalse,btrue,fam,trim,bfam],n|{
                     pi_helper([n.clone(),bfalse,btrue,fam,trim.clone(),bfam], straight_eq(Zero.ctn()?,App(trim,n).ctn()?)?, "hyp", |[n,bfalse,btrue,fam,trim,bfam],hyp|{
                         pi_helper([n.clone(),btrue,fam.clone(),trim,bfam,hyp],App(fam,bfalse).ctn()?,"vf",|[n,btrue,fam,trim,bfam,hyp],_|{
                             pi_helper([n.clone(),fam.clone(),trim,bfam,hyp], App(fam,btrue).ctn()?, "vt", |[n,fam,trim,bfam,hyp],_|{
@@ -53,12 +53,46 @@ impl BoolData {
                     })
                 })?;
                 
-                let fam0 = lam_helper([bfalse,btrue,bfam,fam],straight_eq(Zero.ctn()?, Zero.ctn()?)?)?;
+                let fam0 = lam_helper([bfalse.clone(),btrue.clone(),bfam.clone(),fam.clone()],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[bfalse,btrue,bfam,fam],hyp|{
+                    lam_helper([btrue,bfam,fam.clone(),hyp],App(fam,bfalse).ctn()?,"vf",|[btrue,bfam,fam,hyp],vf|{
+                        lam_helper([bfam,fam.clone(),hyp,vf], App(fam,btrue).ctn()?, "vt", |[bfam,fam,hyp,vf],vt|{
+                            // goal = fam (0, hyp)
+                            // have = fam (0, refl 0)
+                            // refl = hyp
+                            let refl_hyp = App(numbers::zero_eq_trivial()?,hyp).ctn()?;
+                            // h => fam (0 , h)
+                            let cong_func = lam_helper([fam,bfam],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[fam,bfam],hyp|{
+                                App(fam,Pair(bfam,Zero.ctn()?,hyp).ctn()?).ctn()
+                            })?;
+                            // have = goal
+                            let path = cong(cong_func, refl_hyp)?;
+                            transport_eq(path,vf)
+                        })
+                    })
+                })?;
+
+                let fam1 = lam_helper([bfalse,btrue,bfam,fam],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[bfalse,btrue,bfam,fam],hyp|{
+                    lam_helper([btrue,bfam,fam.clone(),hyp],App(fam,bfalse).ctn()?,"vf",|[btrue,bfam,fam,hyp],vf|{
+                        lam_helper([bfam,fam.clone(),hyp,vf], App(fam,btrue).ctn()?, "vt", |[bfam,fam,hyp,vf],vt|{
+                            // goal = fam (1, hyp)
+                            // have = fam (1, refl 0)
+                            // refl = hyp
+                            let refl_hyp = App(numbers::zero_eq_trivial()?,hyp).ctn()?;
+                            // h => fam (0 , h)
+                            let cong_func = lam_helper([fam,bfam],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[fam,bfam],hyp|{
+                                App(fam,Pair(bfam,Succ(Zero.ctn()?).ctn()?,hyp).ctn()?).ctn()
+                            })?;
+                            // have = goal
+                            let path = cong(cong_func, refl_hyp)?;
+                            transport_eq(path,vt)
+                        })
+                    })
+                })?;
                 
                 todo!()
             })?).ctn()
-        });
+        })?;
         
-        Res::Err(ErrorType::new("not yet implemented".into()))
+        Ok(ind)
     }
 }

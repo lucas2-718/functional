@@ -1,4 +1,4 @@
-use functional::{display::{AliasMap, pretty_print_base}, equals::refl, numbers::zero_eq_trivial, *};
+use functional::{bool, display::{AliasMap, pretty_print_base}, equals::refl, numbers::zero_eq_trivial, *};
 
 
 fn run() {
@@ -6,7 +6,12 @@ fn run() {
     aliasmap.add_alias(refl(ctypes::Term::Zero.ctn().unwrap()).unwrap(), "reflzero".into());
     //equals::Theorems::new(0u8.into(),0u8.into()).unwrap();
     //bool::BoolData::new().unwrap();
-    println!("{}",pretty_print_base(zero_eq_trivial().unwrap().typed().unwrap(),&aliasmap));
+    //println!("{}",pretty_print_base(zero_eq_trivial().unwrap().typed().unwrap(),&aliasmap));
+    let booldata = bool::BoolData::new().unwrap();
+    let bfalse = booldata.bool_false.clone();
+    let bool_ind = booldata.bool_ind(bfalse, 0u8.into()).unwrap();
+    println!("{}",pretty_print_base(bool_ind, &aliasmap));
+
     //let fs = impossible::False::new().unwrap();
     //let exfs = fs.clone().exfalso(ctypes::Term::II.ctn().unwrap()).unwrap();
     //println!("{}",pretty_print_base(exfs, &AliasMap::new()))

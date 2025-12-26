@@ -20,6 +20,15 @@ pub fn sym(eq: ContainedTerm) -> Res<ContainedTerm> {
     split_path(eq, IB.ctn()?, IA.ctn()?)
 }
 
+pub fn cong(func: ContainedTerm, eq: ContainedTerm) -> Res<ContainedTerm> {
+    EqLam(lam_helper([func,eq], II.ctn()?, "i", |[func,eq],i|{
+        App(func,EqUw(eq,i).ctn()?).ctn()
+    })?).ctn()
+}
+
+pub fn transport_eq(eq: ContainedTerm, begin: ContainedTerm) -> Res<ContainedTerm> {
+    Transp(lam_helper([eq], II.ctn()?, "i", |[eq],i|{EqUw(eq,i).ctn()})?, begin).ctn()
+}
 
 /// Returns the type a ≡ b provided a and b are the same type
 pub fn straight_eq(a: ContainedTerm, b: ContainedTerm) -> Res<ContainedTerm> {

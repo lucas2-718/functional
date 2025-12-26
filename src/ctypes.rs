@@ -707,12 +707,12 @@ impl Term {
                 match s.clone().pop() {
                     Pair(f,a,b) => {
                         // SigInd(Pair(F,a,b)) = λ T: Sig F -> Type, q: (∀ a: A, b: F a, T (sig F a b)), q a b
-                        let arg = match f.clone().typed()?.pop() {Pi(ty, _,_)=>ty,_=>err_str("impossible")?};
-                        let input = pi_helper([f.clone()],arg.clone(),"sig_a",|[f],val|{App(f,val).ctn()})?;
-                        lam_helper([f,a,b,arg],input,"fam",|[f,a,b,arg],family|{
-                            let initial = pi_helper([f.clone(),family.clone()],arg,"sig_a",|[f,family],a|{
-                                pi_helper([family,f.clone(),a.clone()],App(f,a).ctn()?,"sig_b",|[family,f,a],b|{
-                                    App(family,Pair(f,a,b).ctn()?).ctn()
+                        let family = pi_helper_poly([],Sig(f.clone()).ctn()?,"sf",[n],|[],sf,[n]|{Universe(n).ctn()})?;
+                        lam_helper([f,a,b],family,"fam",|[f,a,b],fam|{
+                            let arg = a.clone().typed()?;
+                            let initial = pi_helper([f.clone(),fam.clone()],arg,"sig_a",|[f,fam],a|{
+                                pi_helper([fam,f.clone(),a.clone()],App(f,a).ctn()?,"sig_b",|[fam,f,a],b|{
+                                    App(fam,Pair(f,a,b).ctn()?).ctn()
                                 })
                             })?;
                             lam_helper([a,b],initial,"init",|[a,b],q|{
