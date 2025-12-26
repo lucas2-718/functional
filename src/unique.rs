@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, hash::Hash, rc::Rc};
 
 pub trait GlobalMap<T> {
     fn insert(&self, v: Rc<T>) -> Rc<T>;
@@ -56,6 +56,9 @@ impl<Q: Hash + GlobalMap<T>, T: Hash> Unique<Q,T> {
     pub fn get_ptr(&self) -> *const T {
         Rc::as_ptr(&self.data)
     }
+    pub fn get_ref(&self) -> &T {
+        &*self.data
+    }
 }
 
 impl<Q: Hash + GlobalMap<T>, T: Hash + Clone> Unique<Q,T> {
@@ -69,5 +72,22 @@ impl<Q: Hash + GlobalMap<T>, T: Hash> Drop for Unique<Q,T> {
         if (Rc::strong_count(&self.data)<=2) {
             self.q.remove(self.data.clone())
         }
+    }
+}
+
+#[derive(Clone,Debug)]
+pub struct Cache<T>(RefCell<T>);
+
+impl<T> PartialEq for Cache<T> {
+    fn eq(&self, other: &Self) -> bool {
+        true
+    }
+}
+
+impl<T> Eq for Cache<T> {}
+
+impl<T> Hash for Cache<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        
     }
 }

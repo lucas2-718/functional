@@ -1,18 +1,15 @@
-#![allow(unused,non_snake_case)]
-
-use crate::ctypes::Res;
-mod unique;
-//mod dtypes;
-mod ctypes;
-mod notation;
-//mod parse;
-mod display;
-mod numbers;
-mod equals;
+use functional::{display::{AliasMap, pretty_print_base}, equals::refl, numbers::zero_eq_trivial, *};
 
 
 fn run() {
-    equals::run(0u8.into()).unwrap();
+    let mut aliasmap = AliasMap::new();
+    aliasmap.add_alias(refl(ctypes::Term::Zero.ctn().unwrap()).unwrap(), "reflzero".into());
+    //equals::Theorems::new(0u8.into(),0u8.into()).unwrap();
+    //bool::BoolData::new().unwrap();
+    println!("{}",pretty_print_base(zero_eq_trivial().unwrap().typed().unwrap(),&aliasmap));
+    //let fs = impossible::False::new().unwrap();
+    //let exfs = fs.clone().exfalso(ctypes::Term::II.ctn().unwrap()).unwrap();
+    //println!("{}",pretty_print_base(exfs, &AliasMap::new()))
 }
 
 fn main(){

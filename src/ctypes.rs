@@ -3,6 +3,14 @@ use std::{array, cell::RefCell, cmp::Ordering, collections::HashSet, fmt::{Debug
 use memoize::memoize;
 use crate::unique::{Unique,GlobalMap};
 
+/// A wrapper on usize that ensures that there is no silent wrapping occuring
+/// 
+/// Simulates a natural number, and panics if it gets too big (which will probably never happen)
+/// ```
+/// let number : Natural = 0u8.into()
+/// let number = number.suc().suc().pred();
+/// assert_eq!(number,Natural::from(1u8.into()));
+/// ```
 #[derive(Hash,Eq,PartialEq,Ord,PartialOrd,Clone,Copy)]
 pub struct Natural(usize);
 
@@ -19,9 +27,11 @@ impl Debug for Natural {
 }
 
 impl Natural {
+    /// Returns the Natural before this one, or panics
     pub fn pred(self) -> Self {
         Self(self.0.checked_sub(1).unwrap())
     }
+    /// Returns the Natural after this one, and panics on overflow
     pub fn suc(self) -> Self {
         Self(self.0.checked_add(1).unwrap())
     }
@@ -33,6 +43,7 @@ impl From<u8> for Natural {
     }
 }
 
+/// An error struct that can record a stack trace of where it has been
 #[derive(Clone,Eq,PartialEq)]
 pub struct ErrorType {
     message: String,
@@ -40,7 +51,8 @@ pub struct ErrorType {
 }
 
 impl ErrorType {
-    fn new(msg: String) -> Self {
+    /// Create a new error with a message and an empty stack trace
+    pub fn new(msg: String) -> Self {
         ErrorType {message:msg, stacktrace: Vec::new()}
     }
 }
@@ -60,14 +72,18 @@ impl Debug for ErrorType {
     }
 }
 
+/// A result with a string error message and a stack trace
 pub type Res<T> = Result<T,ErrorType>;
 
+/// The Blame trait indicates an ability to add context to an error
 pub trait Blame {
+    /// The blame function adds context to an error, usually using the location of the caller
     #[track_caller]
     fn blame(self) -> Self;
 }
 
 impl<T> Blame for Res<T> {
+    /// The blame function adds one location to the stack trace.
     #[track_caller]
     fn blame(self) -> Self {
         match self {
@@ -80,6 +96,7 @@ impl<T> Blame for Res<T> {
     }
 }
 
+/// convert an option to an error type with a message
 #[track_caller]
 pub fn opt_err<T>(x: Option<T>, msg: String) -> Res<T> {
     match x {
@@ -88,7 +105,8 @@ pub fn opt_err<T>(x: Option<T>, msg: String) -> Res<T> {
     }
 }
 
-
+/// The struct Naming wraps a string and is just a name for a variable
+/// However, all namings are equal and do not affect hashing
 #[derive(Clone,Debug)]
 pub struct Naming(pub String);
 impl From<String> for Naming {
@@ -96,6 +114,7 @@ impl From<String> for Naming {
         Self(value)
     }
 }
+
 impl From<&str> for Naming {
     fn from(value: &str) -> Self {
         Self(value.into())
@@ -103,10 +122,12 @@ impl From<&str> for Naming {
 }
 
 impl Naming {
+    /// Creates a new naming from a str, wrapping its String value
     fn new(s: &str) -> Self {
         Self(s.to_string())
     }
 }
+
 impl PartialEq for Naming {
     fn eq(&self, other: &Self) -> bool {
         true
@@ -115,6 +136,7 @@ impl PartialEq for Naming {
         false
     }
 }
+
 impl std::cmp::Eq for Naming {}
 impl Hash for Naming {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -124,6 +146,7 @@ impl Hash for Naming {
 
 thread_local! {static SM: RefCell<HashSet<Rc<Term>>> = RefCell::new(HashSet::new());}
 
+/// Unwraps a natural into its corresponding usize, usually for debug purposes
 #[track_caller]
 pub fn unwrap_natural(n: Natural) -> usize {
     n.0
@@ -144,6 +167,9 @@ impl GlobalMap<Term> for GM {
     }
 }
 
+/// An abstraction for a term structure, and can be conceptually considered like an Rc<Term> with a ton of caching
+/// Due to interning, hashing and equality testing is O(n)
+/// Also caches many functions on each term
 #[derive(Clone,PartialEq, Eq, Hash,PartialOrd, Ord)]
 pub struct ContainedTerm(Unique<GM,Term>);
 
@@ -167,17 +193,20 @@ fn ct_well_typed(this: ContainedTerm, ctx: Context) -> Res<()> {
     this.pop().well_typed(ctx)
 }
 
+/// Creates a new error type with the &str as a message
 #[track_caller]
 pub fn err_str<T>(s: &str) -> Res<T> {
     Err(ErrorType::new(s.to_string())).blame()
 }
 
+/// Creates a new error type with the String as a message
 #[track_caller]
 pub fn err_string<T>(s: String) -> Res<T> {
     Err(ErrorType::new(s)).blame()
 }
 
 impl ContainedTerm {
+    /// Clones the inner value and returns it
     pub fn pop(self) -> Term {
         self.0.clone_inner()
     }
@@ -188,6 +217,7 @@ impl ContainedTerm {
     fn new_unchecked(v: Term) -> Self {
         Self(Unique::new(Rc::new(v),GM))
     }
+    /// Attempts to get the type of the inner value, returning a result
     #[track_caller]
     pub fn typed(self) -> Res<Self> {
         ct_typed(self).blame()
@@ -196,10 +226,15 @@ impl ContainedTerm {
     fn type_max(self, other: Self) -> Res<Self> {
         Self::new(self.pop().type_max(other.pop())?).blame()
     }
+    
     #[track_caller]
     fn subst(self, other: Self, layer: Natural) -> Res<Self> {
         ct_subst(self,other,layer).blame()
     }
+    /// Add a layer of scoping to the term here, effectively mimicking adding a lambda abstraction
+    /// For example, (ctx: x) λ z => x when applied with push_scope 0 would become (ctx: x, y) λ z => x
+    /// Useful for tracking types when they enter a lambda or leave a lambda
+    /// You will likely only use this if trying to write a pretty-printer for a ContainedTerm
     #[track_caller]
     pub fn push_scope(self, n: Natural) -> Res<Self> {
         ct_push_scope(self,n).blame()
@@ -207,6 +242,10 @@ impl ContainedTerm {
     fn check_equal(self, other: Self) -> bool {
         self.eq(&other)
     }
+    /// Checks if a term is refl (or constant) with an example value
+    /// The specific example value does not matter, but is used internally
+    /// For example, λ x => 0 or λ x => 4 would return true
+    /// However, λ x => x would return false
     pub fn check_refl(self,example: Self) -> Res<Option<Self>> {
         let result = App(self.clone(),example).ctn().blame()?;
         Ok(match self.pop() {
@@ -214,9 +253,13 @@ impl ContainedTerm {
             _ => None
         })
     }
+    /// Checks if a term is constant upon a certain layer
+    /// 0 would be a constant in layer "x"
+    /// x would not be a constant in layer "x", but would be a constant in layer "y"
     pub fn check_const(self, layer: Natural) -> Res<Self> {
         self.pop().check_const(layer)
     }
+    /// Convert a term into a number, if it is a natural number
     pub fn get_number(self) -> Option<usize> {
         match self.pop() {
             Zero => Some(0),
@@ -236,43 +279,96 @@ impl std::fmt::Debug for ContainedTerm {
     }
 }
 
+/// A Term represents pretty much anything in the type system
 #[derive(Clone,PartialEq, Eq, Debug, Hash)]
 pub enum Term { // every term is a type
+    /// DeBruijin is conceptually a variable
+    /// The number inside indicates how many lambdas outside of it hold the variable
+    /// For example, in λ x => λ y => x, the return value, "x" would have an index of 1, but in λ x => λ y => y, the return value "y", would have an index of 0.
+    /// DeBruijin(Index,Type)
     DeBrujin(Natural,ContainedTerm), // next term is its type
+    /// A lambda abstraction
+    /// It is not recommended to use this directly, as the [lam_helper] and [lam_helper_poly] functions handle De Bruijn indices for you
+    /// Does eta-reduction -- λ x => f x reduces to f
+    /// Lam(Type,Rvalue,VariableName)
     Lam(ContainedTerm,ContainedTerm,Naming), // lam _: 0 => 1{_}
+    /// Basically the same as lambda, but the rvalue indicates the return type of the lambda that it types
+    /// Similarly to [Lam], not recommended to be used directly, refer to [pi_helper] and [pi_helper_poly] instead.
+    /// Pi(Type,Rtype,VariableName)
     Pi(ContainedTerm,ContainedTerm,Naming), // pi _: 0, 1{_}
+    /// A function application, which reduces if the input function is a concrete lambda and not a variable
+    /// App(Function,Value)
     App(ContainedTerm,ContainedTerm),
+    /// A type universe, of which none are impredicative.  The lack of impredicativity may be changed in the future
     Universe(Natural),
+    /// The type of natural numbers
     Nat,
+    /// The natural number zero
     Zero,
+    /// The successor of a natural number
     Succ(ContainedTerm), // +1
+    /// The natural induction principle
+    /// the type of this for some number m is Π (F: ℕ → Type) (init: F 0) (next: Π (n: ℕ) (x: F n), F (S n)), F m
+    /// reduces on any number [Zero] or [Succ]
+    /// NatInd(Number,Universe)
     NatInd(ContainedTerm,Natural), // value upon which nat_ind is called
+    /// The interval type -- it has no inductor or recursor so [IA] and [IB] may not be distinguished
     II, 
+    /// The first element of the interval type
     IA,
+    /// The second element of the interval type
     IB,
+    /// The not function on the interval type
+    /// Not([IA]) = [IB] and Not([IB]) = [IA]
+    /// Not(Not(i)) = i
     Not(ContainedTerm),
+    /// The and function on the interval type
+    /// And([IA],_) = [IA]; And(_,[IA]) = [IA]; And([IB],i) = i; And(i,[IB]) = i;
     And(ContainedTerm,ContainedTerm),
-    // definitionally computes if either side is well-defined
+    /// Converts a function f: Π (i: [II]) => T{i} to a value of Eq(λ (i: [II]) => T{i},f [IA],f [IB])
+    /// Records endpoints of function
     EqLam(ContainedTerm),
-    // this is typed Eq F (f IA) (f IB)
+    /// The dependent equality type
+    /// Eq(Family,First,Second)
+    /// When the family is constant, behaves like the standard equality type First = Second
     Eq(ContainedTerm,ContainedTerm,ContainedTerm), // Eq (F: II -> Type) (fa: F IA) (fb: F IB)
+    /// Equality application -- unwraps the function represented by a value of type Eq, and computes the result
+    /// Definitionally computes when applied value is [IA] or [IB]
+    /// EqUw(EqLam(x),i) = x i
+    /// EqUw(?: Eq(_,a,b),[IA]) = a
+    /// EqUw(?: Eq(_,a,b),[IB]) = b
     EqUw(ContainedTerm,ContainedTerm), // Unwrap an element of Eq into a function that definitionally computes, and apply it
-    // EqUw(EqLam(x),i) => x i
-    // EqUw(?: Eq(_,a,b),IA) => a
-    // EqUw(?: Eq(_,a,b),IB) => b
+    /// Homogenous composition operator
+    /// Basically, given a family over two interval values
+    /// Compose three paths along the edges of the family
+    /// returns a value upon the path family I₁
+    /// dependent triple-composition
+    /// given a = b, a = c, b = d, then c = d
+    /// As of right now, HComp does not compute very well, but non-equality terms will still compute when transported over it.
     HComp{
+        /// A function II -> II -> Type indicating the family over which to compose
         family: ContainedTerm, // II -> II -> Type
-        base: ContainedTerm, // ?a = ?b ? family I₀ i
-        first: ContainedTerm, // ?a = ?c ? family i I₀
-        second: ContainedTerm, // ?b = ?d ? family i I₁
+        /// The base path is a path ?a = ?b ? family I₀ i
+        base: ContainedTerm, 
+        /// The first path is a path ?a = ?c ? family i I₀
+        first: ContainedTerm, 
+        /// The second path is a path ?b = ?d ? family i I₁
+        second: ContainedTerm, 
     }, // ?c = ?d ? family I₁ i
-    // Hcomp is literally just dependent composition in the only way it could possibly be
+    /// Transport operator
+    /// Transp(function: [II] -> Type, v: f [IA]): f [IB]
     Transp(ContainedTerm,ContainedTerm), // f : II -> Type -> f IA -> f IB
+    /// Dependent sum type
+    /// Sig(family: ?A -> ?B): Type{max(universe of A, universe of B)}
     Sig(ContainedTerm), // Sig works on a function
+    /// A pair is a specific instance of a [Sig]
+    /// Pair(family: ?A -> ?B, a: A, b: F a): [Sig](family)
     Pair(ContainedTerm,ContainedTerm,ContainedTerm), // Pair(F: A -> Type, a: A, F a)
+    /// Dependent sum type induction principle
+    /// SigInd(x): ∀ T: Sig B -> Type, q: (∀ a: A, b: B a, T (sig B a b)), T x
+    /// 
+    /// SigInd(Pair(F,a,b)) = λ T: Sig B -> Type, q: (∀ a: A, b: B a, T (sig B a b)), q a b
     SigInd(ContainedTerm,Natural),
-    // SigInd(x) = ∀ T: Sig F -> Type, q: (∀ a: A, b: B a, T (sig F a b)), T x
-    // SigInd(Pair(F,a,b)) = λ T: Sig F -> Type, q: (∀ a: A, b: B a, T (sig F a b)), q a b
 }
 
 #[derive(Clone,PartialEq, Eq, Hash, Debug)]
@@ -304,7 +400,11 @@ impl Context {
 
 use Term::*;
 
-
+/// Helper to create a lambda
+/// the first array is the objects to bring inside the lambda
+/// the second value is the type of the parameter
+/// the third value is the name of the parameter
+/// and the final function is the 
 pub fn lam_helper<const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, f: impl Fn([ContainedTerm; N], ContainedTerm) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
     let mut sp2: [ContainedTerm; N] = array::from_fn(|v|{II.ctn().unwrap()});
     let mut sp = sp.into_iter();
@@ -316,13 +416,15 @@ pub fn lam_helper<const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, nam
     Lam(ty,f(sp,arg)?,name.into()).ctn()
 }
 
+
+/// the same as [lam_helper], but the extra array allows universe levels to be brought into the body of the lambda for polymorphism
 pub fn lam_helper_poly<const N: usize, const M: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, nums: [Natural; M], f: impl Fn([ContainedTerm; N], ContainedTerm, [Natural; M]) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
     lam_helper(sp,ty,name,move |sp,ty|{
         f(sp,ty,nums)
     })
 }
 
-
+/// the same as [lam_helper], but to describe the dependent function type rather than the lambda expression
 pub fn pi_helper<const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, f: impl Fn([ContainedTerm; N], ContainedTerm) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
     let mut sp2: [ContainedTerm; N] = array::from_fn(|v|{II.ctn().unwrap()});
     let mut sp = sp.into_iter();
@@ -334,12 +436,14 @@ pub fn pi_helper<const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name
     Pi(ty,f(sp,arg)?,name.into()).ctn()
 }
 
+/// the same as [lam_helper_poly], but to describe the dependent function type rather than the lambda expression
 pub fn pi_helper_poly<const N: usize, const M: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, nums: [Natural; M], f: impl Fn([ContainedTerm; N], ContainedTerm, [Natural; M]) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
     pi_helper(sp,ty,name,move |sp,ty|{
         f(sp,ty,nums)
     })
 }
 
+/// Create a function that extracts the first value of a Sig(family) when applied to it
 #[track_caller]
 pub fn sig_ex0(family: ContainedTerm) -> Res<ContainedTerm> {
     let A0 = match family.clone().typed()?.pop() {
@@ -359,6 +463,7 @@ pub fn sig_ex0(family: ContainedTerm) -> Res<ContainedTerm> {
     })
 }
 
+/// Create a function that extracts the dependent second value of a Sig(family) when applied to it -- typed v: Sig(family) -> family ([sig_ex0] v)
 pub fn sig_ex1(family: ContainedTerm) -> Res<ContainedTerm> {
     let A0 = match family.clone().typed()?.pop() {
         Pi(A0,_,_) => A0,
@@ -382,6 +487,8 @@ pub fn sig_ex1(family: ContainedTerm) -> Res<ContainedTerm> {
 }
 
 impl Term {
+    /// Convert a term into a [ContainedTerm], reducing it in the process as all contained terms are reducted.
+    /// If it fails to reduce, return an error value
     #[track_caller]
     pub fn ctn(self) -> Res<ContainedTerm> {
         ContainedTerm::new(self)
@@ -644,8 +751,12 @@ impl Term {
                     },
                     _ => match e.clone().pop() {
                         EqLam(x) => App(x,i).ctn()?,
-                        DeBrujin(n, ty) => EqUw(e,i).ctn_unchecked(),
-                        _ => err_str("e is not eq / db")?
+                        term => {
+                            match e.clone().typed()?.pop() {
+                                Eq(_,_,_) => EqUw(e,i).ctn_unchecked(),
+                                _ => err_str("e is not eq")?
+                            }
+                        },
                     },
                 }
             }
@@ -846,6 +957,7 @@ fn check_eq<A: std::fmt::Debug + std::cmp::Eq>(x: A, y: A) -> Res<()> {
     if (x==y) {Ok(())} else {err_str(&format!("{:?}!={:?}",x,y))}
 }
 
+/// Check if a value is well typed, and print its type
 pub fn check(t: ContainedTerm) {
     match (t.clone().well_typed(Context::new())) {
         Ok(_) => println!("Well typed!"),
@@ -854,6 +966,8 @@ pub fn check(t: ContainedTerm) {
     println!("{:?}",t.typed());
 }
 
+/// Create a [ContainedTerm] of type [Nat] that represents the number given
+/// O(n) time
 pub fn num(x: usize) -> ContainedTerm {
     let mut base = Zero.ctn().unwrap();
     for i in 0..x {

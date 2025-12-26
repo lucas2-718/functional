@@ -1,10 +1,3 @@
-use crate::ctypes::ContainedTerm;
+use non_empty_string::NonEmptyString;
 
-struct Pattern {
-    data: Vec<String>,
-}
-
-struct Notation {
-    pattern: Pattern,
-    term: ContainedTerm
-}
+use crate::{ctypes::ContainedTerm, unique::GlobalMap};
