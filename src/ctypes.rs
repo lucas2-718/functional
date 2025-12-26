@@ -677,25 +677,42 @@ impl Term {
             NatInd(term,un) => {
                 match term.clone().pop() {
                     Zero => {
+
                         let u = Universe(un).ctn()?;
+
                         let family = Pi(Nat.ctn()?,u,"index".into()).ctn()?;
-                        let initial = App(DeBrujin(0u8.into(), family.clone()).ctn()?,Zero.ctn()?).ctn()?;
-                        let next = Pi(Nat.ctn()?,Pi(App(DeBrujin(2u8.into(), family.clone()).ctn()?,DeBrujin(0u8.into(), Nat.ctn()?).ctn()?).ctn()?,App(DeBrujin(3u8.into(), family.clone()).ctn()?,Succ(DeBrujin(1u8.into(), Nat.ctn()?).ctn()?).ctn()?).ctn()?,"cur".into()).ctn()?,"n".into()).ctn()?;
-                        Lam(family,Lam(initial.clone(),Lam(next,DeBrujin(1u8.into(), initial).ctn()?,"next".into()).ctn()?,"init".into()).ctn()?,"fam".into()).ctn_unchecked()
+                        lam_helper([], family, "fam", |[],fam|{
+                            let initial = App(fam.clone(),Zero.ctn()?).ctn()?;
+                            lam_helper([fam], initial, "init", |[fam],init|{
+                                let next = pi_helper([fam], Nat.ctn()?, "n", |[fam],n|{
+                                    pi_helper([n.clone(),fam.clone()],App(fam,n).ctn()?,"cur",|[n,fam],current|{
+                                        App(fam,Succ(n).ctn()?).ctn()
+                                    })
+                                })?;
+                                lam_helper([init], next, "next", |[init],next|{
+                                    Ok(init)
+                                })
+                            })
+                        })?
+                        
                     }
                     Succ(v) => {
+                        
                         let u = Universe(un.clone()).ctn()?;
                         let family = Pi(Nat.ctn()?,u,"index".into()).ctn()?;
-                        let initial = App(DeBrujin(0u8.into(), family.clone()).ctn()?,Zero.ctn()?).ctn()?;
-                        let next = Pi(Nat.ctn()?,Pi(App(DeBrujin(2u8.into(), family.clone()).ctn()?,DeBrujin(0u8.into(), Nat.ctn()?).ctn()?).ctn()?,App(DeBrujin(3u8.into(), family.clone()).ctn()?,Succ(DeBrujin(1u8.into(), Nat.ctn()?).ctn()?).ctn()?).ctn()?,"cur".into()).ctn()?,"n".into()).ctn()?;
-                        let base = NatInd(v.clone(),un).reduce()?;
-                        Lam(family.clone(),Lam(initial.clone(),Lam(next.clone(),
-                            App(App(DeBrujin(0u8.into(), next.clone().push_scope(0u8.into())?).ctn()?,v).ctn()?,
-                                App(App(App(base.push_scope(0u8.into())?.push_scope(0u8.into())?.push_scope(0u8.into())?,
-                                    DeBrujin(2u8.into(),family.push_scope(0u8.into())?.push_scope(0u8.into())?.push_scope(0u8.into())?).ctn()?).ctn()?,
-                                    DeBrujin(1u8.into(),initial.push_scope(0u8.into())?.push_scope(0u8.into())?).ctn()?).ctn()?,
-                                    DeBrujin(0u8.into(), next.push_scope(0u8.into())?).ctn()?).ctn()?)
-                                .ctn()?,"next".into()).ctn()?,"init".into()).ctn()?,"fam".into()).ctn_unchecked()
+                        lam_helper_poly([v], family, "fam", [un],|[v],fam,[un]|{
+                            let initial = App(fam.clone(),Zero.ctn()?).ctn()?;
+                            lam_helper_poly([fam,v], initial, "init", [un],|[fam,v],init,[un]|{
+                                let next = pi_helper([fam.clone()], Nat.ctn()?, "n", |[fam],n|{
+                                    pi_helper([n.clone(),fam.clone()],App(fam,n).ctn()?,"cur",|[n,fam],current|{
+                                        App(fam,Succ(n).ctn()?).ctn()
+                                    })
+                                })?;
+                                lam_helper_poly([init,v,fam], next, "next", [un],|[init,v,fam],next,[un]|{
+                                    App(App(next.clone(),v.clone()).ctn()?,App(App(App(NatInd(v,un).ctn()?,fam).ctn()?,init).ctn()?,next).ctn()?).ctn()
+                                })
+                            })
+                        })?
                     }
                     _ => match term.clone().typed()?.pop() {
                         Nat => NatInd(term,un).ctn_unchecked(),

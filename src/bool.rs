@@ -1,4 +1,4 @@
-use crate::{ctypes::{ContainedTerm, ErrorType, Natural, Res, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, straight_eq, transport_eq}, numbers};
+use crate::{ctypes::{ContainedTerm, ErrorType, Natural, Res, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, straight_eq, transport_eq}, impossible::FalseData, numbers};
 
 pub struct BoolData {
     pub trim: ContainedTerm,
@@ -42,7 +42,7 @@ impl BoolData {
                 // matching on goal
                 // (hyp : 0 = 0) -> (vf: fam (0, refl 0)) -> (vt: fam (1, refl 0)) : fam (0, hyp) := transport vt over refl 0 = hyp
                 // (hyp : 0 = 0) -> (vf: fam (0, refl 0)) -> (vt: fam (1, refl 0)) : fam (1, hyp) := transport vt over refl 0 = hyp
-                // (hyp : 0 = 1) -> _ -> _ -> fam (2 + n, hyp) := exfalso on hyp
+                // (hyp : 0 = 1) : (vf: fam (0, refl 0)) -> (vt: fam (1, refl 0)) -> fam (2 + n, hyp) := exfalso into the family
                 let indfam = lam_helper([bfalse.clone(),btrue.clone(),fam.clone(),trim,bfam.clone()], Nat.ctn()?, "n", |[bfalse,btrue,fam,trim,bfam],n|{
                     pi_helper([n.clone(),bfalse,btrue,fam,trim.clone(),bfam], straight_eq(Zero.ctn()?,App(trim,n).ctn()?)?, "hyp", |[n,bfalse,btrue,fam,trim,bfam],hyp|{
                         pi_helper([n.clone(),btrue,fam.clone(),trim,bfam,hyp],App(fam,bfalse).ctn()?,"vf",|[n,btrue,fam,trim,bfam,hyp],_|{
@@ -71,7 +71,7 @@ impl BoolData {
                     })
                 })?;
 
-                let fam1 = lam_helper([bfalse,btrue,bfam,fam],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[bfalse,btrue,bfam,fam],hyp|{
+                let fam1 = lam_helper([bfalse.clone(),btrue.clone(),bfam.clone(),fam.clone()],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[bfalse,btrue,bfam,fam],hyp|{
                     lam_helper([btrue,bfam,fam.clone(),hyp],App(fam,bfalse).ctn()?,"vf",|[btrue,bfam,fam,hyp],vf|{
                         lam_helper([bfam,fam.clone(),hyp,vf], App(fam,btrue).ctn()?, "vt", |[bfam,fam,hyp,vf],vt|{
                             // goal = fam (1, hyp)
@@ -88,6 +88,21 @@ impl BoolData {
                         })
                     })
                 })?;
+
+                let fam2 = lam_helper([bfalse,btrue,bfam,fam.clone()],Nat.ctn()?,"n2",|[bfalse,btrue,bfam,fam],n2|{
+                    lam_helper([bfalse,btrue,bfam,fam,n2], straight_eq(Zero.ctn()?, Succ(Zero.ctn()?).ctn()?)?, "hyp", |[bfalse,btrue,bfam,fam,n2],hyp|{
+                        let n = Succ(Succ(n2).ctn()?).ctn()?;
+                        let target = pi_helper([n.clone(),btrue,fam.clone(),bfam,hyp.clone()],App(fam,bfalse).ctn()?,"vf",|[n,btrue,fam,bfam,hyp],_|{
+                            pi_helper([n.clone(),fam.clone(),bfam,hyp], App(fam,btrue).ctn()?, "vt", |[n,fam,bfam,hyp],_|{
+                                App(fam,Pair(bfam,n,hyp).ctn()?).ctn()
+                            })
+                        })?;
+                        App(FalseData::new()?.exfalso(target)?,hyp).ctn()
+                    })
+                })?;
+
+
+                let partial = App(NatInd(n, u).ctn()?,indfam).ctn()?.typed()?;
                 
                 todo!()
             })?).ctn()
