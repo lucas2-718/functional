@@ -1,20 +1,22 @@
 
 use std::thread::sleep;
 
-use crate::{ctypes::{ContainedTerm, Res, Scopeless, Term::*, check, lam_helper, num, pi_helper}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, split_path, straight_eq}, impossible::FalseData};
+use crate::{ctypes::{ContainedTerm, Res, Scopeless, Term::*, check, lam_helper, num, pi_helper}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, split_path, straight_eq, sym, trans}, impossible::FalseData};
 
+/// Returns a lambda that returns the successor
 pub fn successor_function() -> Res<ContainedTerm> {
     lam_helper([], Nat.ctn()?, "n", |[],n|{Succ(n).ctn()})
 }
 
 /// A function where 0 => 0 and _ => 1
+/// Helpful for converting 0 = succ x to 0 = 1, which is what the false type is internally
 pub fn flatten_natural(n: ContainedTerm) -> Res<ContainedTerm> {
     let fam = Pi(Nat.ctn()?,Nat.ctn()?,"_".into()).ctn()?;
     App(App(NatInd(n, 0u8.into()).ctn()?,Zero.ctn()?).ctn()?,Lam(Nat.ctn()?, Lam(Nat.ctn()?, Succ(Zero.ctn()?).ctn()?, "_".into()).ctn()?, "_".into()).ctn()?).ctn()
 }
 
 /// Proof that all values of 0=0 are in fact refl
-/// term typed (h : 0 = 0) -> refl 0 = h
+/// produces a term typed (h : 0 = 0) -> refl 0 = h
 pub fn zero_eq_trivial() -> Res<ContainedTerm> {
     // Proving that (h : 0=0) -> refl 0 = h is relatively trivial
     // we can prove that h i = 0 via casing on what h i is and then path splitting
@@ -69,17 +71,29 @@ pub fn zero_eq_trivial() -> Res<ContainedTerm> {
 }
 
 
+/// A struct with some proofs and functions about [Nat]
 #[derive(Clone)]
 pub struct NatData {
+    /// The function that does addition
+    /// Works about how you would expect, but only computes on first argument
+    /// Use [NatData::add_zero_right] and [NatData::add_succ_right] to do things as if it computes on the second argument
+    /// Or use [NatData::add_sym], but that involves concatenated paths, which might cause problems 
     pub add_func: ContainedTerm,
+    /// Proof that (x : nat) -> add x 0 = x
+    /// Analogue to left computation rule on zero
     pub add_zero_right: ContainedTerm,
+    /// Proof that (x y : nat) -> add x (S y) = S (add x y)
+    /// Analogue to left computation rule on successor
     pub add_succ_right: ContainedTerm,
+    /// Proof that (x y : nat) -> add x y = add y x
+    /// Symmetric property of addition
     pub add_sym: ContainedTerm
 }
 
 impl Scopeless for NatData {}
 
 impl NatData {
+    /// Creates a new instance of NatData with the functions and proofs inside the struct
     pub fn new() -> Res<Self> {
         let addition = lam_helper([], Nat.ctn()?, "n", |[],n|{
             let family = Lam(Nat.ctn()?,Pi(Nat.ctn()?,Nat.ctn()?,"x".into()).ctn()?,"n".into()).ctn()?;
@@ -139,12 +153,26 @@ impl NatData {
 
         // add x (S y) = add (S y) x
         // ~ add x (S y) = S (add y x)
-        // -> asr x y . (? : (add y x = add x y))
+        // -> asr x y . (? : (add x y = add y x) = cong S prev)
         
         // add x 0 = add 0 x
         // add x 0 = x -> azr x
-        
+        let add_sym = lam_helper([addition.clone(),add_zero_right.clone(),add_succ_right.clone()],Nat.ctn()?,"x",|[addition,azr,asr],x|{
+            lam_helper([addition,x,azr,asr], Nat.ctn()?, "y", |[addition,x,azr,asr],y|{
+                let family = lam_helper([addition.clone(),x.clone()], Nat.ctn()?, "y", |[addition,x],y|{
+                    straight_eq(App(App(addition.clone(),x.clone()).ctn()?,y.clone()).ctn()?, App(App(addition,y).ctn()?,x).ctn()?)
+                })?;
+                let base = App(azr,x.clone()).ctn()?;
+                let step = lam_helper([addition,x,asr,family.clone()], Nat.ctn()?, "y", |[addition,x,asr,fam],y|{
+                    lam_helper([addition,x,y.clone(),asr], App(fam,y).ctn()?, "prev", |[addition,x,y,asr],prev|{
+                        trans(App(App(asr,x).ctn()?,y).ctn()?,cong(successor_function()?,prev)?)
+                    })
+                })?;
+                
+                App(App(App(NatInd(y, 0u8.into()).ctn()?,family).ctn()?,base).ctn()?,step).ctn()
+            })
+        })?;
 
-        todo!();
+        Ok(NatData { add_func: addition, add_zero_right, add_succ_right, add_sym })
     }
 }

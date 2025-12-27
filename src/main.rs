@@ -13,10 +13,10 @@ fn run() {
     aliasmap.add_alias(btrue.clone(), "true".into());
     aliasmap.add_alias(bfalse.clone(), "false".into());
     let bool_ind = booldata.generic_bool_ind(0u8.into()).unwrap();
-    //println!("{}",pretty_print_base(bool_ind, &aliasmap));
+    println!("{}",pretty_print_base(bool_ind, &aliasmap));
 
     let natdata = NatData::new().unwrap();
-    println!("{:?}",App(App(natdata.add_func,num(15)).ctn().unwrap(),num(17)).ctn().unwrap().get_number());
+    println!("{:?}",App(App(natdata.add_sym,num(15)).ctn().unwrap(),num(17)).ctn().unwrap());
 
     //let fs = impossible::False::new().unwrap();
     //let exfs = fs.clone().exfalso(ctypes::Term::II.ctn().unwrap()).unwrap();

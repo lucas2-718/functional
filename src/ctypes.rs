@@ -344,7 +344,9 @@ pub enum Term { // every term is a type
     /// returns a value upon the path family I₁
     /// dependent triple-composition
     /// given a = b, a = c, b = d, then c = d
-    /// As of right now, HComp does not compute very well, but non-equality terms will still compute when transported over it.
+    /// As of right now, HComp does not compute very well
+    /// While it has been updated, 1d paths are the only paths that will compute, and higher paths will get stuck
+    /// Transport across said higher paths might also get stuck due to the way HComp is written here
     HComp{
         /// A function II -> II -> Type indicating the family over which to compose
         family: ContainedTerm, // II -> II -> Type
@@ -398,7 +400,7 @@ impl Context {
     }
 }
 
-
+/// A trait that guarantees that whatever is inside it refers to no lambda variables and so can be sent across lambda abstraction boundaries easily.
 pub trait Scopeless : Clone {}
 impl Scopeless for Natural {}
 impl<T: Scopeless, const N: usize> Scopeless for [T; N] {}
@@ -422,7 +424,11 @@ use Term::*;
 /// the first array is the objects to bring inside the lambda
 /// the second value is the type of the parameter
 /// the third value is the name of the parameter
-/// and the final function is the 
+/// and the final function is the function you are trying to make
+/// internally, this just pushes the scope of all of the given terms, and then gives as an argument to the closure
+/// weird lifetime errors probably means you are trying to reuse something from the external scope
+/// which can be done, but probably isn't what you want to do, as external variable references won't work correctly without the helper
+/// refer to [lam_helper_poly] for sending scopeless variables (like universe levels) across the scope boundary
 pub fn lam_helper<const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, f: impl Fn([ContainedTerm; N], ContainedTerm) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
     let mut sp2: [ContainedTerm; N] = array::from_fn(|v|{II.ctn().unwrap()});
     let mut sp = sp.into_iter();
@@ -876,7 +882,7 @@ impl Term {
                             let lf = Lam(ii.clone(),f,"i".into()).ctn()?;
                             let la = Lam(ii.clone(),a,"j".into()).ctn()?;
                             let lb = Lam(ii.clone(),b,"j".into()).ctn()?;
-                            HComp { family: lf, base: x, first: la, second: lb }.ctn()?
+                            HComp { family: lf, base: x, first: EqLam(la).ctn()?, second: EqLam(lb).ctn()? }.ctn()?
                         }
                         Sig(f) => {
                             let (lfa,ty0l,ty1l) = match f.clone().typed()?.pop() {

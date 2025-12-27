@@ -2,6 +2,11 @@ use std::f32::consts::E;
 
 use crate::{ctypes::{ContainedTerm, Natural, Res, Term::*, check, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}};
 
+/// Split a path over two interval variables
+/// Very useful for handling paths directly
+/// split_path(eq,IA,IB) = eq
+/// split_path(eq,IB,IA) = sym eq
+/// split_path(eq,x,x) = refl (eq x)
 pub fn split_path(eq: ContainedTerm, i1: ContainedTerm, i2: ContainedTerm) -> Res<ContainedTerm> {
     // (i2 and i) or (i1 and not i)
     // not (not (i2 and i) and not (i1 and not i))
@@ -16,24 +21,31 @@ pub fn split_path(eq: ContainedTerm, i1: ContainedTerm, i2: ContainedTerm) -> Re
     })?).ctn()
 }
 
-pub fn trans(ty: ContainedTerm, eqA: ContainedTerm, eqB: ContainedTerm) -> Res<ContainedTerm> {
-    let cfirst = App(eqA.clone(),IA.ctn()?).ctn()?;
+/// Transitive principle of equality, allows you to concatenate paths
+/// watch out for higher paths with this one, hcomp in this prover has issues with higher paths
+/// this should work at least when you would expect regular J to work, however
+pub fn trans(eqA: ContainedTerm, eqB: ContainedTerm) -> Res<ContainedTerm> {
+    let cfirst = EqUw(eqA.clone(),IA.ctn()?).ctn()?;
     let family = EqLam(lam_helper([eqB,cfirst], II.ctn()?, "i", |[eqB,cfirst],i|{
         straight_eq(cfirst, EqUw(eqB,i).ctn()?)
     })?).ctn()?;
     transport_eq(family, eqA)
 }
 
+/// Switch path : a = b to sym path : b = a by symmetric principle of equality
 pub fn sym(eq: ContainedTerm) -> Res<ContainedTerm> {
     split_path(eq, IB.ctn()?, IA.ctn()?)
 }
 
+/// Congruent principle of equality
+/// cong(func,eq: a = b) : func a = func b 
 pub fn cong(func: ContainedTerm, eq: ContainedTerm) -> Res<ContainedTerm> {
     EqLam(lam_helper([func,eq], II.ctn()?, "i", |[func,eq],i|{
         App(func,EqUw(eq,i).ctn()?).ctn()
     })?).ctn()
 }
 
+/// Transport a term over an equality, because the [Transp] primitive operates on lambdas, not an equality
 pub fn transport_eq(eq: ContainedTerm, begin: ContainedTerm) -> Res<ContainedTerm> {
     Transp(lam_helper([eq], II.ctn()?, "i", |[eq],i|{EqUw(eq,i).ctn()})?, begin).ctn()
 }

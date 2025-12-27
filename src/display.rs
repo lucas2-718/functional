@@ -78,24 +78,30 @@ impl TypingContext {
     }
 }
 
+/// A map of aliases for some terms, so that they print as the string alias that is input
+/// There are better ways to do this, but it works OK for simple display
 pub struct AliasMap(HashMap<ContainedTerm,String>);
 
 impl AliasMap {
+    /// Creates an empty alias map
     pub fn new() -> Self {
         Self(HashMap::new())
     }
+    /// Adds an alias to the alias map
     pub fn add_alias(&mut self, term: ContainedTerm, name: String) {
         self.0.insert(term, name);
     }
+    /// Get an alias from the alias map, if it exist
     pub fn get(&self, term: &ContainedTerm) -> Option<&String> {
         self.0.get(term)
     }
 }
 
+/// Prints a term in a more human-readable format, using aliases from an AliasMap
 pub fn pretty_print_base(t: ContainedTerm, aliases: &AliasMap) -> String {
     let mut output = String::new();
     let context = DisplayContext::new();
-    pretty_print(t, context, TypingContext::new(), &mut output, aliases);
+    pretty_print(t, context, TypingContext::new(), &mut output, aliases).unwrap();
     output
 }
 

@@ -15,6 +15,7 @@ mod unique;
 /// The main thing to remember is [ctypes::Term::ctn] is necessary to build nested structs, as it interns the values to improve performance
 pub mod ctypes;
 mod notation;
+/// The module that handles displaying terms
 pub mod display;
 /// The module that creates theorems about basic natural numbers
 /// Still work-in-progress

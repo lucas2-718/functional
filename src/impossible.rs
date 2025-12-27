@@ -1,16 +1,23 @@
-use crate::{ctypes::{ContainedTerm, ErrorType, Res, Term::*, lam_helper, lam_helper_poly}, equals::straight_eq};
+use crate::{ctypes::{ContainedTerm, ErrorType, Res, Scopeless, Term::*, lam_helper, lam_helper_poly}, equals::straight_eq};
 
+/// Basic data about the type with no inhabitants, False
+/// False is internally represented by 0 = 1, so any value of that may be used as a value of false
 #[derive(Clone)]
 pub struct FalseData {
+    /// The False type that has no inhabitants and indicates logical impossibility
     pub false_type: ContainedTerm,
 }
 
+impl Scopeless for FalseData {}
+
 impl FalseData {
+    /// Create an instance of FalseData
     pub fn new() -> Res<Self> {
         Ok(Self {
             false_type : straight_eq(Zero.ctn()?,Succ(Zero.ctn()?).ctn()?)?
         })
     }
+    /// Given a logically impossible term, make a term of any type via transport
     pub fn exfalso(&self, target: ContainedTerm) -> Res<ContainedTerm> {
         match target.clone().typed()?.pop() {
             Universe(n) => {
