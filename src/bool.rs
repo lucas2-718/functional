@@ -16,7 +16,7 @@ impl BoolData {
         let trim = lam_helper([family], Nat.ctn()?, "n", |[family],n|{
             App(App(App(NatInd(n, 0u8.into()).ctn()?,family.clone()).ctn()?,Zero.ctn()?).ctn()?,lam_helper([family], Nat.ctn()?, "n-1", |[family],n|{
                 lam_helper([family,n],Nat.ctn()?,"_",|[family,n],_|{
-                    App(App(App(NatInd(n, 0u8.into()).ctn()?,family.clone()).ctn()?,Zero.ctn()?).ctn()?,Lam(Nat.ctn()?,Lam(Nat.ctn()?,Succ(Zero.ctn()?).ctn()?,"_".into()).ctn()?,"n-2".into()).ctn()?).ctn()
+                    App(App(App(NatInd(n, 0u8.into()).ctn()?,family.clone()).ctn()?,Zero.ctn()?).ctn()?,Lam(Nat.ctn()?,Lam(Nat.ctn()?,Succ(Zero.ctn()?).ctn()?,"_".into()).ctn()?,"n2".into()).ctn()?).ctn()
                 })
             })?).ctn()
         })?;
@@ -36,7 +36,14 @@ impl BoolData {
     pub fn bool_ind(&self, b: ContainedTerm, n: Natural) -> Res<ContainedTerm> {
         let famtype = pi_helper_poly([], self.bool_type.clone(), "_", [n], |[],_,[n]|{Universe(n).ctn()})?;
         let ind = lam_helper_poly([b,self.trim.clone(),self.bool_false.clone(),self.bool_true.clone(),self.bool_fam.clone()], famtype, "fam", [n], |[b,trim,bfalse,btrue,bfam],fam,[n]|{
-            App(App(SigInd(b, n).ctn()?,fam.clone()).ctn()?,lam_helper_poly([trim,fam,bfalse,btrue,bfam], Nat.ctn()?, "n", [n],|[trim,fam,bfalse,btrue,bfam],n,[u]|{
+            let true_family = lam_helper([fam.clone(),bfalse.clone(),btrue.clone()], Sig(bfam.clone()).ctn()?, "b", |[fam,bfalse,btrue],b|{
+                pi_helper([btrue,fam.clone(),b], App(fam,bfalse).ctn()?, "vf", |[btrue,fam,b],vf|{
+                    pi_helper([fam.clone(),b], App(fam,btrue).ctn()?, "vt", |[fam,b],vt|{
+                        App(fam,b).ctn()
+                    })
+                })
+            })?;
+            App(App(SigInd(b, n).ctn()?,true_family.clone()).ctn()?,lam_helper_poly([trim,fam,bfalse,btrue,bfam], Nat.ctn()?, "n", [n],|[trim,fam,bfalse,btrue,bfam],n,[u]|{
                 // Goal : (hyp: 0 = trim n) -> fam (0, refl 0) -> fam (1, refl 0) -> fam (n, hyp)
                 // how to prove goal
                 // matching on goal
@@ -102,9 +109,20 @@ impl BoolData {
                 })?;
 
 
-                let partial = App(NatInd(n, u).ctn()?,indfam).ctn()?.typed()?;
+                let partial = App(App(App(NatInd(n, u).ctn()?,indfam.clone()).ctn()?,fam0).ctn()?,lam_helper_poly([fam1,fam2,indfam], Nat.ctn()?, "n1", [u],|[fam1,fam2,indfam],n1,[u]|{
+                    let new_indfam = lam_helper_poly([indfam.clone()], Nat.ctn()?, "n", [u],|[indfam],n,[u]|{
+                        App(indfam,Succ(n).ctn()?).ctn()
+                    })?;
+                    lam_helper_poly([fam1,fam2,new_indfam.clone(),n1.clone()], App(indfam,n1).ctn()?, "_", [u],|[fam1,fam2,indfam,n1],_,[u]|{
+                        App(App(App(NatInd(n1, u).ctn()?,indfam.clone()).ctn()?,fam1).ctn()?,lam_helper([fam2,indfam], Nat.ctn()?, "n2", |[fam2,indfam],n2|{
+                            lam_helper([fam2,indfam.clone(),n2.clone()],App(indfam,n2).ctn()?,"_",|[fam2,indfam,n2],_|{
+                                App(fam2,n2).ctn()
+                            })
+                        })?).ctn()
+                    })
+                })?).ctn()?;
                 
-                todo!()
+                Ok(partial)
             })?).ctn()
         })?;
         

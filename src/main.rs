@@ -9,7 +9,10 @@ fn run() {
     //println!("{}",pretty_print_base(zero_eq_trivial().unwrap().typed().unwrap(),&aliasmap));
     let booldata = bool::BoolData::new().unwrap();
     let bfalse = booldata.bool_false.clone();
-    let bool_ind = booldata.bool_ind(bfalse, 0u8.into()).unwrap();
+    let btrue = booldata.bool_true.clone();
+    aliasmap.add_alias(btrue.clone(), "true".into());
+    aliasmap.add_alias(bfalse.clone(), "false".into());
+    let bool_ind = booldata.bool_ind(btrue, 0u8.into()).unwrap();
     println!("{}",pretty_print_base(bool_ind, &aliasmap));
 
     //let fs = impossible::False::new().unwrap();
