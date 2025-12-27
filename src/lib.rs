@@ -9,6 +9,7 @@
 //! - refer to the variants in [ctypes::Term] for more fine control over the proofs
 //! - there is no way to construct inductive types, but many can be constructed by creating a larger type than intended and pruning it by pairing it with an equality that only holds in some cases
 //! - refer to [bool] for an example implementation of this concept.
+//! - use [ctypes::FinalTerm] to finalize a proof and ensure that it is correct - i.e. doesn't rely on lambda parameters that don't exist
 
 mod unique;
 /// The module that handles all of the internals of the prover
@@ -16,14 +17,17 @@ mod unique;
 pub mod ctypes;
 mod notation;
 /// The module that handles displaying terms
+/// The term display portion is pretty basic, but miles more readable than raw de bruijn indices
 pub mod display;
 /// The module that creates theorems about basic natural numbers
-/// Still work-in-progress
+/// So far, produces the addition function and that it is symmetric
 pub mod numbers;
 /// Produces translation theorems between axiom-j equality and cubical equality for convenience
 pub mod equals;
 // mod bucket;
 
+/// The module that describes the booleans in terms of the natural numbers
 pub mod bool;
+/// The module that describes the false type
 pub mod impossible;
 

@@ -1,7 +1,7 @@
 
 use std::thread::sleep;
 
-use crate::{ctypes::{ContainedTerm, Res, Scopeless, Term::*, check, lam_helper, num, pi_helper}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, split_path, straight_eq, sym, trans}, impossible::FalseData};
+use crate::{ctypes::{ContainedTerm, FinalTerm, Res, Scopeless, Term::*, check, lam_helper, num, pi_helper}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, split_path, straight_eq, sym, trans}, impossible::FalseData};
 
 /// Returns a lambda that returns the successor
 pub fn successor_function() -> Res<ContainedTerm> {
@@ -17,7 +17,7 @@ pub fn flatten_natural(n: ContainedTerm) -> Res<ContainedTerm> {
 
 /// Proof that all values of 0=0 are in fact refl
 /// produces a term typed (h : 0 = 0) -> refl 0 = h
-pub fn zero_eq_trivial() -> Res<ContainedTerm> {
+pub fn zero_eq_trivial() -> Res<FinalTerm> {
     // Proving that (h : 0=0) -> refl 0 = h is relatively trivial
     // we can prove that h i = 0 via casing on what h i is and then path splitting
     // this ensures the endpoint behavior being that h i = 0 is refl and not some variant of h
@@ -67,27 +67,27 @@ pub fn zero_eq_trivial() -> Res<ContainedTerm> {
             })?).ctn()
         })?).ctn()
         
-    })
+    })?.fin()
 }
 
 
 /// A struct with some proofs and functions about [Nat]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct NatData {
     /// The function that does addition
     /// Works about how you would expect, but only computes on first argument
     /// Use [NatData::add_zero_right] and [NatData::add_succ_right] to do things as if it computes on the second argument
     /// Or use [NatData::add_sym], but that involves concatenated paths, which might cause problems 
-    pub add_func: ContainedTerm,
+    pub add_func: FinalTerm,
     /// Proof that (x : nat) -> add x 0 = x
     /// Analogue to left computation rule on zero
-    pub add_zero_right: ContainedTerm,
+    pub add_zero_right: FinalTerm,
     /// Proof that (x y : nat) -> add x (S y) = S (add x y)
     /// Analogue to left computation rule on successor
-    pub add_succ_right: ContainedTerm,
+    pub add_succ_right: FinalTerm,
     /// Proof that (x y : nat) -> add x y = add y x
     /// Symmetric property of addition
-    pub add_sym: ContainedTerm
+    pub add_sym: FinalTerm
 }
 
 impl Scopeless for NatData {}
@@ -173,6 +173,11 @@ impl NatData {
             })
         })?;
 
-        Ok(NatData { add_func: addition, add_zero_right, add_succ_right, add_sym })
+        let add_func = addition.fin()?;
+        let add_zero_right = add_zero_right.fin()?;
+        let add_succ_right = add_succ_right.fin()?;
+        let add_sym = add_sym.fin()?;
+
+        Ok(NatData { add_func, add_zero_right, add_succ_right, add_sym })
     }
 }

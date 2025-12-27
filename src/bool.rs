@@ -1,18 +1,18 @@
-use crate::{ctypes::{ContainedTerm, ErrorType, Natural, Res, Scopeless, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, straight_eq, transport_eq}, impossible::FalseData, numbers};
+use crate::{ctypes::{ContainedTerm, ErrorType, FinalTerm, Natural, Res, Scopeless, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, straight_eq, transport_eq}, impossible::FalseData, numbers};
 
 /// Basic data describing the booleans
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct BoolData {
     /// The trimming function used internally, returns 0 if the input is zero or 1 and otherwise returns 1
-    pub trim: ContainedTerm,
+    pub trim: FinalTerm,
     /// The type of booleans, a sum requiring trim to be zero
-    pub bool_type: ContainedTerm,
+    pub bool_type: FinalTerm,
     /// The false boolean, of type bool_type
-    pub bool_false: ContainedTerm,
+    pub bool_false: FinalTerm,
     /// The true boolean, of type bool_type
-    pub bool_true: ContainedTerm,
+    pub bool_true: FinalTerm,
     /// The family used in the [Sig] of [BoolData::bool_type]
-    pub bool_fam: ContainedTerm,
+    pub bool_fam: FinalTerm,
 }
 
 impl Scopeless for BoolData {}
@@ -35,18 +35,20 @@ impl BoolData {
             straight_eq(Zero.ctn()?, App(trim,n).ctn()?)
         })?;
 
-        let bool_type = Sig(bfam.clone()).ctn()?;
+        let bool_type = Sig(bfam.clone()).ctn()?.fin()?;
 
-        let bool_false = Pair(bfam.clone(), Zero.ctn()?, refl(Zero.ctn()?)?).ctn()?;
+        let bool_false = Pair(bfam.clone(), Zero.ctn()?, refl(Zero.ctn()?)?).ctn()?.fin()?;
 
-        let bool_true = Pair(bfam.clone(), Succ(Zero.ctn()?).ctn()?, refl(Zero.ctn()?)?).ctn()?;
+        let bool_true = Pair(bfam.clone(), Succ(Zero.ctn()?).ctn()?, refl(Zero.ctn()?)?).ctn()?.fin()?;
 
-        Ok(BoolData { trim, bool_type, bool_false, bool_true, bool_fam: bfam })
+        let trim = trim.fin()?;
+
+        Ok(BoolData { trim, bool_type, bool_false, bool_true, bool_fam: bfam.fin()? })
     }
     /// Runs the boolean induction principle on a specific instance of a boolean
     pub fn bool_ind(&self, b: ContainedTerm, n: Natural) -> Res<ContainedTerm> {
-        let famtype = pi_helper_poly([], self.bool_type.clone(), "_", [n], |[],_,[n]|{Universe(n).ctn()})?;
-        let ind = lam_helper_poly([b,self.trim.clone(),self.bool_false.clone(),self.bool_true.clone(),self.bool_fam.clone()], famtype, "fam", [n], |[b,trim,bfalse,btrue,bfam],fam,[n]|{
+        let famtype = pi_helper_poly([], self.bool_type.get(), "_", [n], |[],_,[n]|{Universe(n).ctn()})?;
+        let ind = lam_helper_poly([b,self.trim.get(),self.bool_false.get(),self.bool_true.get(),self.bool_fam.get()], famtype, "fam", [n], |[b,trim,bfalse,btrue,bfam],fam,[n]|{
             let true_family = lam_helper([fam.clone(),bfalse.clone(),btrue.clone()], Sig(bfam.clone()).ctn()?, "b", |[fam,bfalse,btrue],b|{
                 pi_helper([btrue,fam.clone(),b], App(fam,bfalse).ctn()?, "vf", |[btrue,fam,b],vf|{
                     pi_helper([fam.clone(),b], App(fam,btrue).ctn()?, "vt", |[fam,b],vt|{
@@ -77,7 +79,7 @@ impl BoolData {
                             // goal = fam (0, hyp)
                             // have = fam (0, refl 0)
                             // refl = hyp
-                            let refl_hyp = App(numbers::zero_eq_trivial()?,hyp).ctn()?;
+                            let refl_hyp = App(numbers::zero_eq_trivial()?.get(),hyp).ctn()?;
                             // h => fam (0 , h)
                             let cong_func = lam_helper([fam,bfam],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[fam,bfam],hyp|{
                                 App(fam,Pair(bfam,Zero.ctn()?,hyp).ctn()?).ctn()
@@ -95,7 +97,7 @@ impl BoolData {
                             // goal = fam (1, hyp)
                             // have = fam (1, refl 0)
                             // refl = hyp
-                            let refl_hyp = App(numbers::zero_eq_trivial()?,hyp).ctn()?;
+                            let refl_hyp = App(numbers::zero_eq_trivial()?.get(),hyp).ctn()?;
                             // h => fam (0 , h)
                             let cong_func = lam_helper([fam,bfam],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[fam,bfam],hyp|{
                                 App(fam,Pair(bfam,Succ(Zero.ctn()?).ctn()?,hyp).ctn()?).ctn()
@@ -140,9 +142,9 @@ impl BoolData {
         Ok(ind)
     }
     /// Creates the boolean induction principle on a specific universe level
-    pub fn generic_bool_ind(&self, n: Natural) -> Res<ContainedTerm> {
-        lam_helper_poly([], self.bool_type.clone(), "b", (self.clone(),n), |[],b,(this,n)|{
+    pub fn generic_bool_ind(&self, n: Natural) -> Res<FinalTerm> {
+        lam_helper_poly([], self.bool_type.get(), "b", (self.clone(),n), |[],b,(this,n)|{
             this.bool_ind(b, n)
-        })
+        })?.fin()
     }
 }

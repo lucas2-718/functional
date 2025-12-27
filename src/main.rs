@@ -1,26 +1,44 @@
+use std::io::stdin;
+
 use functional::{bool, ctypes::{Term::*, num}, display::{AliasMap, pretty_print_base}, equals::refl, numbers::{NatData}, *};
 
 
 fn run() {
     let mut aliasmap = AliasMap::new();
     aliasmap.add_alias(refl(ctypes::Term::Zero.ctn().unwrap()).unwrap(), "reflzero".into());
-    //equals::Theorems::new(0u8.into(),0u8.into()).unwrap();
-    //bool::BoolData::new().unwrap();
-    //println!("{}",pretty_print_base(zero_eq_trivial().unwrap().typed().unwrap(),&aliasmap));
     let booldata = bool::BoolData::new().unwrap();
-    let bfalse = booldata.bool_false.clone();
-    let btrue = booldata.bool_true.clone();
-    aliasmap.add_alias(btrue.clone(), "true".into());
-    aliasmap.add_alias(bfalse.clone(), "false".into());
-    let bool_ind = booldata.generic_bool_ind(0u8.into()).unwrap();
-    println!("{}",pretty_print_base(bool_ind, &aliasmap));
-
     let natdata = NatData::new().unwrap();
-    println!("{:?}",App(App(natdata.add_sym,num(15)).ctn().unwrap(),num(17)).ctn().unwrap());
+    
+    println!("raw definition of boolean type : {}", pretty_print_base(booldata.bool_type.get(), &aliasmap));
 
-    //let fs = impossible::False::new().unwrap();
-    //let exfs = fs.clone().exfalso(ctypes::Term::II.ctn().unwrap()).unwrap();
-    //println!("{}",pretty_print_base(exfs, &AliasMap::new()))
+    aliasmap.add_alias(booldata.bool_true.get(), "true".into());
+    aliasmap.add_alias(booldata.bool_false.get(), "false".into());
+    aliasmap.add_alias(booldata.bool_type.get(), "bool".into());
+    aliasmap.add_alias(booldata.trim.get(),"booltrim".into());
+    let bool_ind = booldata.generic_bool_ind(0u8.into()).unwrap();
+    
+    println!("boolean induction principle type : {}",pretty_print_base(bool_ind.get().typed().unwrap(), &aliasmap));
+
+    println!("addition definition : {:?}",natdata.add_func);
+
+    
+    let fs = impossible::FalseData::new().unwrap();
+    let exfs = fs.clone().exfalso(ctypes::Term::II.ctn().unwrap()).unwrap();
+    println!("example exfalso into the II type, which is inhabited, but this is done through exfalso {}",pretty_print_base(exfs, &AliasMap::new()));
+
+    println!("Input two numbers line-separated to be added via the inductively defined add function (unary representation means numbers > 100 can take a while though!)");
+
+    let mut x = String::new();
+    let mut y = String::new();
+    stdin().read_line(&mut x).unwrap();
+    stdin().read_line(&mut y).unwrap();
+
+    let x : usize = x.chars().filter(|c|{c.is_numeric()}).collect::<String>().parse().unwrap();
+    let y : usize = y.chars().filter(|c|{c.is_numeric()}).collect::<String>().parse().unwrap();
+
+    println!("added terms result : {}",App(App(natdata.add_func.get(),num(x)).ctn().unwrap(),num(y)).ctn().unwrap().get_number().unwrap());
+
+
 }
 
 fn main(){

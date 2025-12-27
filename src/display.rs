@@ -233,6 +233,17 @@ fn pretty_print(t: ContainedTerm, context: DisplayContext, mut tc: TypingContext
             output.push_str(&format!("Ind\u{3A3}{{{}}} ",n));
             pretty_print(x, context, tc, output, aliases)?;
         }
+        HComp { family, base, first, second } => {
+            output.push_str("HComp{");
+            pretty_print(family, context.clone(), tc.clone(), output, aliases)?;
+            output.push(',');
+            pretty_print(base, context.clone(), tc.clone(), output, aliases)?;
+            output.push(',');
+            pretty_print(first, context.clone(), tc.clone(), output, aliases)?;
+            output.push(',');
+            pretty_print(second, context, tc, output, aliases)?;
+            output.push('}');
+        }
         v => panic!("Unimplemented: {:?}",v),
     };
     Ok(())

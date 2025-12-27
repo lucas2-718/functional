@@ -1,7 +1,7 @@
 use std::{array, cell::RefCell, cmp::Ordering, collections::HashSet, fmt::{Debug, Display}, hash::Hash, panic::Location, rc::Rc, thread::Scope};
 
 use memoize::memoize;
-use crate::unique::{Unique,GlobalMap};
+use crate::{display::{AliasMap, pretty_print_base}, unique::{GlobalMap, Unique}};
 
 /// A wrapper on usize that ensures that there is no silent wrapping occuring
 /// 
@@ -170,6 +170,7 @@ impl GlobalMap<Term> for GM {
 /// An abstraction for a term structure, and can be conceptually considered like an Rc<Term> with a ton of caching
 /// Due to interning, hashing and equality testing is O(n)
 /// Also caches many functions on each term
+/// Cloning is in fact quite cheap for this, because it is just an Rc
 #[derive(Clone,PartialEq, Eq, Hash,PartialOrd, Ord)]
 pub struct ContainedTerm(Unique<GM,Term>);
 
@@ -270,6 +271,11 @@ impl ContainedTerm {
     #[track_caller]
     fn well_typed(self, context: Context) -> Res<()> {
         ct_well_typed(self, context).blame()
+    }
+    #[track_caller]
+    /// Method wrapper for [FinalTerm::new]
+    pub fn fin(self) -> Res<FinalTerm> {
+        FinalTerm::new(self)
     }
 }
 
@@ -417,6 +423,31 @@ impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Sc
 impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless, J: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I,J) {}
 impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless, J: Scopeless, K: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I,J,K) {}
 impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless, J: Scopeless, K: Scopeless, L: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I,J,K,L) {}
+
+/// A final term that can stand on its own and has no unbound variables
+/// Is scopeless
+#[derive(Clone,Hash,PartialEq,Eq)]
+pub struct FinalTerm(ContainedTerm);
+impl FinalTerm {
+    #[track_caller]
+    /// Try to create a final term, which may fail if there are bound variables
+    pub fn new(ct: ContainedTerm) -> Res<FinalTerm> {
+        ct.clone().well_typed(Context { data: vec![] })?;
+        Ok(Self(ct))
+    }
+    /// Get the term from the final term for use in more proofs
+    pub fn get(&self) -> ContainedTerm {
+        self.0.clone()
+    }
+}
+
+impl Scopeless for FinalTerm {}
+
+impl Debug for FinalTerm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"{}",pretty_print_base(self.get(), &AliasMap::new()))
+    }
+}
 
 use Term::*;
 
@@ -990,20 +1021,20 @@ impl Term {
                 first.clone().well_typed(context.clone())?;
                 second.clone().well_typed(context)?;
                 match base.typed()?.pop() {Eq(f,a,b) => {
-                    check_eq(f.clone(),App(family,IA.ctn().unwrap()).ctn()?)?;
+                    check_eq(f.clone(),App(family.clone(),IA.ctn().unwrap()).ctn()?)?;
                     match first.typed()?.pop() {Eq(g,a_,_) => {
-                        check_eq(a_,a)?; check_eq(g,lam_helper([f.clone()], II.ctn().unwrap(),"i", |[f],i|{
-                            App(App(f,i).ctn()?,IA.ctn().unwrap()).ctn()
+                        check_eq(a_,a)?; check_eq(g,lam_helper([family.clone()], II.ctn().unwrap(),"i", |[fam],i|{
+                            App(App(fam,i).ctn()?,IA.ctn().unwrap()).ctn()
                         })?)?;
                     }, _ => err_str("first is not an equality")?}
                     match second.typed()?.pop() {Eq(g,b_,_) => {
-                        check_eq(b_,b)?; check_eq(g, lam_helper([f.clone()], II.ctn().unwrap(), "i",|[f],i|{
-                            App(App(f,i).ctn()?,IB.ctn().unwrap()).ctn()
+                        check_eq(b_,b)?; check_eq(g, lam_helper([family.clone()], II.ctn().unwrap(), "i",|[fam],i|{
+                            App(App(fam,i).ctn()?,IB.ctn().unwrap()).ctn()
                         })?)
                     }, _ => err_str("second is not an equality")}
                 }, _ => err_str("base is not an equality")}
             }
-            Transp(f,x) => {check_eq(App(f.clone(),IA.ctn().unwrap()).ctn()?,x.clone())?; f.well_typed(context.clone())?; x.well_typed(context)},
+            Transp(f,x) => {check_eq(App(f.clone(),IA.ctn().unwrap()).ctn()?,x.clone().typed()?)?; f.well_typed(context.clone())?; x.well_typed(context)},
             Sig(f) => f.well_typed(context),
             Pair(f,a,b) => {check_eq(App(f.clone(),a.clone()).ctn()?,b.clone().typed()?)?; f.well_typed(context.clone())?; a.well_typed(context.clone())?; b.well_typed(context)},
             SigInd(s,n) => {(match s.clone().typed()?.pop() {Sig(_)=>Ok(()),_=>err_str("It is not sigma")})?; s.well_typed(context)}
