@@ -1,4 +1,4 @@
-use std::{array, cell::RefCell, cmp::Ordering, collections::HashSet, fmt::{Debug, Display}, hash::Hash, panic::Location, rc::Rc};
+use std::{array, cell::RefCell, cmp::Ordering, collections::HashSet, fmt::{Debug, Display}, hash::Hash, panic::Location, rc::Rc, thread::Scope};
 
 use memoize::memoize;
 use crate::unique::{Unique,GlobalMap};
@@ -398,6 +398,24 @@ impl Context {
     }
 }
 
+
+pub trait Scopeless : Clone {}
+impl Scopeless for Natural {}
+impl<T: Scopeless, const N: usize> Scopeless for [T; N] {}
+impl Scopeless for () {}
+impl<A: Scopeless> Scopeless for (A,) {}
+impl<A: Scopeless, B: Scopeless> Scopeless for (A,B) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless> Scopeless for (A,B,C) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless> Scopeless for (A,B,C,D) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless> Scopeless for (A,B,C,D,E) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless> Scopeless for (A,B,C,D,E,F) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless> Scopeless for (A,B,C,D,E,F,G) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless> Scopeless for (A,B,C,D,E,F,G,H) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless, J: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I,J) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless, J: Scopeless, K: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I,J,K) {}
+impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless, J: Scopeless, K: Scopeless, L: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I,J,K,L) {}
+
 use Term::*;
 
 /// Helper to create a lambda
@@ -418,9 +436,9 @@ pub fn lam_helper<const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, nam
 
 
 /// the same as [lam_helper], but the extra array allows universe levels to be brought into the body of the lambda for polymorphism
-pub fn lam_helper_poly<const N: usize, const M: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, nums: [Natural; M], f: impl Fn([ContainedTerm; N], ContainedTerm, [Natural; M]) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
+pub fn lam_helper_poly<Q: Scopeless + 'static, const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, nums: Q, f: impl Fn([ContainedTerm; N], ContainedTerm, Q) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
     lam_helper(sp,ty,name,move |sp,ty|{
-        f(sp,ty,nums)
+        f(sp,ty,nums.clone())
     })
 }
 
@@ -795,23 +813,28 @@ impl Term {
                } 
             }
             Transp(f,x) => match f.clone().pop() {
-                //EqLam(g) => if (g.check_refl(IA.ctn()?)?.is_some()) {x} else {Transp(f,x).ctn_unchecked()}
-                HComp { family, base, first, second } => {
-                    let lfirst = Lam(II.ctn().unwrap(),first,"i".into()).ctn()?;
-                    let lbase = Lam(II.ctn().unwrap(),base,"i".into()).ctn()?;
-                    let lsecond = Lam(II.ctn().unwrap(),second,"i".into()).ctn()?;
-                    // family: ContainedTerm, // II -> II -> Type
-                    // base: ContainedTerm, // ?a = ?b ? family I₀ i
-                    // first: ContainedTerm, // ?a = ?c ? family i I₀
-                    // second: ContainedTerm, // ?b = ?d ? family i I₁
-                    // given x: ?c find y: ?d.
-                    // x over sym first, then over base, then over second
-                    Transp(lsecond,Transp(lbase,Transp(lam_helper([lfirst],II.ctn().unwrap(),"i",|[lfirst],i|{
-                        App(lfirst,Not(i).ctn()?).ctn()
-                    })?,x).ctn()?).ctn()?).ctn()?
-                }
                 Lam(ii,g,iname) => if (f.clone().check_refl(IA.ctn()?)?.is_some()) {x} else { 
                     match g.pop() { // g is the output
+                        EqUw(lm,j) => {
+                            if (j == DeBrujin(0u8.into(), ii.clone()).ctn()?) {match lm.pop() {
+                                HComp { family, base, first, second } => {
+                                    let lfirst = Lam(II.ctn().unwrap(),first,"i".into()).ctn()?;
+                                    let lbase = Lam(II.ctn().unwrap(),base,"i".into()).ctn()?;
+                                    let lsecond = Lam(II.ctn().unwrap(),second,"i".into()).ctn()?;
+                                    // family: ContainedTerm, // II -> II -> Type
+                                    // base: ContainedTerm, // ?a = ?b ? family I₀ i
+                                    // first: ContainedTerm, // ?a = ?c ? family i I₀
+                                    // second: ContainedTerm, // ?b = ?d ? family i I₁
+                                    // given x: ?c find y: ?d.
+                                    // x over sym first, then over base, then over second
+                                    return Transp(lsecond,Transp(lbase,Transp(lam_helper([lfirst],II.ctn().unwrap(),"i",|[lfirst],i|{
+                                        App(lfirst,Not(i).ctn()?).ctn()
+                                    })?,x).ctn()?).ctn()?).ctn();
+                                },
+                                _ => ()
+                            }};
+                            Transp(f,x).ctn_unchecked()
+                        }
                         Pi(ty,body,tyname) => {
                             let func = x;
                             let lty = Lam(ii.clone(),ty.clone(),iname.clone()).ctn().unwrap();
@@ -893,6 +916,17 @@ impl Term {
                     }
                 }
                 g => Transp(f,x).ctn_unchecked()
+            }
+            HComp { family, base, first, second } => {
+                match (first.clone().pop(),second.clone().pop()) {
+                    (EqLam(lfirst),EqLam(lsecond)) => {
+                        if (lfirst.check_refl(IA.ctn()?)?.is_some() && lsecond.check_refl(IA.ctn()?)?.is_some() && family.clone().check_refl(IA.ctn()?)?.is_some()) {
+                            return Ok(base);
+                        }
+                    },
+                    _ => ()
+                };
+                HComp { family, base, first, second }.ctn_unchecked()
             }
             Lam(ty,body,tyname) => {
                 match body.clone().pop() {

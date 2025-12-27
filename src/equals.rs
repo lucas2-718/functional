@@ -16,6 +16,14 @@ pub fn split_path(eq: ContainedTerm, i1: ContainedTerm, i2: ContainedTerm) -> Re
     })?).ctn()
 }
 
+pub fn trans(ty: ContainedTerm, eqA: ContainedTerm, eqB: ContainedTerm) -> Res<ContainedTerm> {
+    let cfirst = App(eqA.clone(),IA.ctn()?).ctn()?;
+    let family = EqLam(lam_helper([eqB,cfirst], II.ctn()?, "i", |[eqB,cfirst],i|{
+        straight_eq(cfirst, EqUw(eqB,i).ctn()?)
+    })?).ctn()?;
+    transport_eq(family, eqA)
+}
+
 pub fn sym(eq: ContainedTerm) -> Res<ContainedTerm> {
     split_path(eq, IB.ctn()?, IA.ctn()?)
 }
@@ -45,16 +53,16 @@ pub fn refl(a: ContainedTerm) -> Res<ContainedTerm> {
 /// Axiom J: ∀ (T: Type) (a: T) (f: ∀ (b: T) (h: a ≡ b), Type), f a (λ i => a) → ∀ (b: T) (h: a ≡ b), f b h
 /// Contractibility of singletons : ∀ (T: Type) (a: T) (s: Σ (b: T), (a ≡ b)), s = (a,refl)
 #[derive(Clone)]
-pub struct Theorems {
+pub struct EqualTheorems {
     sig_contr: ContainedTerm,
     axiom_j: ContainedTerm,
 }
 
-impl Theorems {
+impl EqualTheorems {
     /// Create a new instance based on two universe levels
     /// n controls the input universe level
     /// m controls the output universe level
-    pub fn new(n: Natural, m: Natural) -> Res<Theorems> {
+    pub fn new(n: Natural, m: Natural) -> Res<EqualTheorems> {
         // target - based J
         // intermediate - contractibility of sigma
         
@@ -97,10 +105,10 @@ impl Theorems {
                         Universe(m).ctn()
                     })
                 })?;
-                lam_helper_poly([a,ty], fty, "fam", [], |[a,ty],fam,[]|{
-                    lam_helper_poly([a.clone(),ty,fam.clone()], App(App(fam,a.clone()).ctn()?,refl(a)?).ctn()?, "init", [], |[a,ty,fam],init,[]|{
-                        lam_helper_poly([a,fam,init], ty, "b", [], |[a,fam,init],b,[]|{
-                            lam_helper_poly([fam,init], straight_eq(a, b)?, "h", [], |[fam,init],h,[]|{
+                lam_helper_poly([a,ty], fty, "fam", (), |[a,ty],fam,()|{
+                    lam_helper_poly([a.clone(),ty,fam.clone()], App(App(fam,a.clone()).ctn()?,refl(a)?).ctn()?, "init", (), |[a,ty,fam],init,()|{
+                        lam_helper_poly([a,fam,init], ty, "b", (), |[a,fam,init],b,()|{
+                            lam_helper_poly([fam,init], straight_eq(a, b)?, "h", (), |[fam,init],h,()|{
                                 Transp(lam_helper([fam,h],II.ctn()?,"i",|[fam,h],i|{
                                     App(App(fam,EqUw(h.clone(),i.clone()).ctn()?).ctn()?,EqLam(lam_helper([h,i], II.ctn()?, "j", |[h,i],j|{
                                         EqUw(h,And(i,j).ctn()?).ctn()

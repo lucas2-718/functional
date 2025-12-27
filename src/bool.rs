@@ -1,5 +1,6 @@
-use crate::{ctypes::{ContainedTerm, ErrorType, Natural, Res, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, straight_eq, transport_eq}, impossible::FalseData, numbers};
+use crate::{ctypes::{ContainedTerm, ErrorType, Natural, Res, Scopeless, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, straight_eq, transport_eq}, impossible::FalseData, numbers};
 
+#[derive(Clone)]
 pub struct BoolData {
     pub trim: ContainedTerm,
     pub bool_type: ContainedTerm,
@@ -7,6 +8,8 @@ pub struct BoolData {
     pub bool_true: ContainedTerm,
     pub bool_fam: ContainedTerm,
 }
+
+impl Scopeless for BoolData {}
 
 impl BoolData {
     pub fn new() -> Res<BoolData> {
@@ -127,5 +130,10 @@ impl BoolData {
         })?;
         
         Ok(ind)
+    }
+    pub fn generic_bool_ind(&self, n: Natural) -> Res<ContainedTerm> {
+        lam_helper_poly([], self.bool_type.clone(), "b", (self.clone(),n), |[],b,(this,n)|{
+            this.bool_ind(b, n)
+        })
     }
 }

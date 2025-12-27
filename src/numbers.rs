@@ -1,7 +1,11 @@
 
 use std::thread::sleep;
 
-use crate::{ctypes::{ContainedTerm, Res, Term::*, check, lam_helper, num, pi_helper}, display::{AliasMap, pretty_print_base}, equals::{refl, split_path, straight_eq}, impossible::FalseData};
+use crate::{ctypes::{ContainedTerm, Res, Scopeless, Term::*, check, lam_helper, num, pi_helper}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, split_path, straight_eq}, impossible::FalseData};
+
+pub fn successor_function() -> Res<ContainedTerm> {
+    lam_helper([], Nat.ctn()?, "n", |[],n|{Succ(n).ctn()})
+}
 
 /// A function where 0 => 0 and _ => 1
 pub fn flatten_natural(n: ContainedTerm) -> Res<ContainedTerm> {
@@ -64,32 +68,83 @@ pub fn zero_eq_trivial() -> Res<ContainedTerm> {
     })
 }
 
-/// In development
-pub fn run() -> Res<()> {
-    let family = Lam(Nat.ctn()?,Pi(Nat.ctn()?,Nat.ctn()?,"n".into()).ctn()?,"_".into()).ctn()?;
-    let id_nat = lam_helper([], Nat.ctn()?, "n", |[],n|{Ok(n)})?;
-    let fn_succ_nat = lam_helper([],Nat.ctn()?,"_",|_,_|{lam_helper([],Pi(Nat.ctn()?,Nat.ctn()?,"n".into()).ctn()?,"f",|[],f|{
-        lam_helper([f],Nat.ctn()?,"n",|[f],n|{Succ(App(f,n).ctn()?).ctn()})
-    })})?;
-    let add = lam_helper([family,id_nat,fn_succ_nat], Nat.ctn()?, "n", |[family,id_nat,fn_succ_nat],n|{
-        App(App(App(NatInd(n, 0u8.into()).ctn()?,family).ctn()?,id_nat).ctn()?,fn_succ_nat).ctn()
-    })?;
 
+#[derive(Clone)]
+pub struct NatData {
+    pub add_func: ContainedTerm,
+    pub add_zero_right: ContainedTerm,
+    pub add_succ_right: ContainedTerm,
+    pub add_sym: ContainedTerm
+}
 
-    let add_0_l = lam_helper([add.clone()],Nat.ctn()?,"n",|[add],n|{
-        let inner = App(NatInd(n, 0u8.into()).ctn()?,lam_helper([add.clone()], Nat.ctn()?, "n", |[add],n|{
-            straight_eq(App(App(add,n.clone()).ctn()?,Zero.ctn()?).ctn()?, n)
-        })?).ctn()?;
+impl Scopeless for NatData {}
 
-        App(App(inner,refl(Zero.ctn()?)?).ctn()?,lam_helper([add], Nat.ctn()?, "n", |[add],n|{
-            lam_helper([], straight_eq(App(App(add,n.clone()).ctn()?,Zero.ctn()?).ctn()?,Zero.ctn()?)?, "h", |[],h|{
-                EqLam(lam_helper([h], II.ctn()?, "i", |[h],i|{
-                    Succ(EqUw(h, i).ctn()?).ctn()
-                })?).ctn()
+impl NatData {
+    pub fn new() -> Res<Self> {
+        let addition = lam_helper([], Nat.ctn()?, "n", |[],n|{
+            let family = Lam(Nat.ctn()?,Pi(Nat.ctn()?,Nat.ctn()?,"x".into()).ctn()?,"n".into()).ctn()?;
+            let base = lam_helper([], Nat.ctn()?, "x", |[],x|{Ok(x)})?;
+            let step = lam_helper([],Nat.ctn()?,"n",|[],n|{
+                lam_helper([], Pi(Nat.ctn()?,Nat.ctn()?,"n".into()).ctn()?, "f", |[],f|{
+                    lam_helper([f], Nat.ctn()?, "x", |[f],x|{
+                        // add (S n) ? = S (add n ?)
+                        // there is an equivalent form of
+                        // add (S n) ? = add n (S ?)
+                        // but it is harder to work with definitionally
+                        Succ(App(f,x).ctn()?).ctn()
+                    })
+                })
+            })?;
+            App(App(App(NatInd(n, 0u8.into()).ctn()?,family).ctn()?,base).ctn()?,step).ctn()
+        })?;
+        
+        // add x 0 = x
+        // add 0 0 = 0 -> refl
+        // add (S x) 0 = S x -> cong S (prev : add x 0 = x)
+        let add_zero_right = lam_helper([addition.clone()], Nat.ctn()?, "x", |[addition],x|{
+            let family = lam_helper([addition.clone()], Nat.ctn()?, "x", |[addition],x|{
+                straight_eq(App(App(addition,x.clone()).ctn()?,Zero.ctn()?).ctn()?, x)
+            })?;
+            let base = refl(Zero.ctn()?)?;
+            let step = lam_helper([addition], Nat.ctn()?, "x", |[addition],x|{
+                lam_helper([], straight_eq(App(App(addition,x.clone()).ctn()?,Zero.ctn()?).ctn()?, x)?, "p", |[],p|{
+                    cong(successor_function()?, p)
+                })
+            })?;
+
+            App(App(App(NatInd(x, 0u8.into()).ctn()?,family).ctn()?,base).ctn()?,step).ctn()
+        })?;
+
+        // add x (S y) = S (add x y)
+        // add 0 (S y) = S y -> refl
+        // add (S x) (S y) = S (add (S x) y)
+        // ~ S (add x (S y)) = S (S (add x y)) -> cong S (prev : add x (S y) = S (add x y))
+        let add_succ_right = lam_helper([addition.clone()], Nat.ctn()?, "x", |[addition],x|{
+            lam_helper([addition,x], Nat.ctn()?, "y", |[addition,x],y|{
+                let family = lam_helper([addition.clone(),y.clone()],Nat.ctn()?,"x",|[addition,y],x|{
+                    straight_eq(App(App(addition.clone(),x.clone()).ctn()?,Succ(y.clone()).ctn()?).ctn()?, Succ(App(App(addition,x).ctn()?,y).ctn()?).ctn()?)
+                })?;
+                let base = refl(Succ(y.clone()).ctn()?)?;
+                let step = lam_helper([family.clone()],Nat.ctn()?,"x",|[family],x|{
+                    lam_helper([],App(family,x).ctn()?,"p",|[],p|{
+                        cong(successor_function()?,p)
+                    })
+                })?;
+
+                App(App(App(NatInd(x, 0u8.into()).ctn()?,family).ctn()?,base).ctn()?,step).ctn()
             })
-        })?).ctn()
-    })?;
-    
-    println!("{}",App(App(add,num(60)).ctn()?,num(15)).ctn()?.get_number().unwrap());
-    Ok(())
+        })?;
+
+        // add x y = add y x
+
+        // add x (S y) = add (S y) x
+        // ~ add x (S y) = S (add y x)
+        // -> asr x y . (? : (add y x = add x y))
+        
+        // add x 0 = add 0 x
+        // add x 0 = x -> azr x
+        
+
+        todo!();
+    }
 }
