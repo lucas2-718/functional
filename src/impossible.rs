@@ -21,10 +21,10 @@ impl FalseData {
     pub fn exfalso(&self, target: ContainedTerm) -> Res<ContainedTerm> {
         match target.clone().typed()?.pop() {
             Universe(n) => {
-                let other: ContainedTerm = if (n==0u8.into()) {
+                let other: ContainedTerm = if n==0u8.into() {
                     Zero.ctn()?
                 } else {
-                    if (n==1u8.into()) {
+                    if n==1u8.into() {
                         Nat.ctn()?
                     } else {
                         Universe(n.pred().pred()).ctn()?

@@ -69,7 +69,7 @@ impl<Q: Hash + GlobalMap<T>, T: Hash + Clone> Unique<Q,T> {
 
 impl<Q: Hash + GlobalMap<T>, T: Hash> Drop for Unique<Q,T> {
     fn drop(&mut self) {
-        if (Rc::strong_count(&self.data)<=2) {
+        if Rc::strong_count(&self.data)<=2 {
             self.q.remove(self.data.clone())
         }
     }

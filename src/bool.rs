@@ -1,4 +1,4 @@
-use crate::{ctypes::{ContainedTerm, ErrorType, FinalTerm, Natural, Res, Scopeless, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, straight_eq, transport_eq}, impossible::FalseData, numbers};
+use crate::{ctypes::{ContainedTerm, FinalTerm, Natural, Res, Scopeless, Term::*, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, equals::{cong, refl, straight_eq, transport_eq}, impossible::FalseData, numbers};
 
 /// Basic data describing the booleans
 #[derive(Clone,Debug)]

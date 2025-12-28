@@ -6,8 +6,6 @@ use crate::ctypes::unwrap_natural;
 use crate::ctypes::ContainedTerm;
 use crate::ctypes::Term::*;
 use std::collections::HashMap;
-use std::iter::once;
-use std::time::Duration;
 
 #[derive(Clone)]
 struct DisplayContext {
@@ -17,7 +15,7 @@ struct DisplayContext {
 
 fn subscriptify(mut s: usize) -> String {
     let mut digits = Vec::new();
-    while (s>0) {
+    while s>0 {
         let digit = s % 10;
         digits.push(digit);
         s /= 10;
@@ -70,7 +68,7 @@ impl TypingContext {
     }
     #[track_caller]
     fn get(&self, n: usize) -> Res<&ContainedTerm> {
-        if (n>=self.data.len()) {return err_str("Index out of bounds [positive]")}
+        if n>=self.data.len() {return err_str("Index out of bounds [positive]")}
         opt_err(self.data.get(self.data.len()-1-n),"Index out of bounds [negative??]".into())
     }
     fn new() -> Self {
@@ -200,7 +198,7 @@ fn pretty_print(t: ContainedTerm, context: DisplayContext, mut tc: TypingContext
             pretty_print(x, context.clone(), tc.clone(), output, aliases)?;
             output.push('\u{2261}');
             pretty_print(y,context.clone(),tc.clone(),output,aliases)?;
-            if (p.clone().check_refl(IA.ctn().unwrap())?.is_none()) {
+            if p.clone().check_refl(IA.ctn().unwrap())?.is_none() {
                 output.push('?');
                 pretty_print(p, context, tc, output, aliases)?;
             }

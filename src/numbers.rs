@@ -1,7 +1,6 @@
 
-use std::thread::sleep;
 
-use crate::{ctypes::{ContainedTerm, FinalTerm, Res, Scopeless, Term::*, check, lam_helper, num, pi_helper}, display::{AliasMap, pretty_print_base}, equals::{cong, refl, split_path, straight_eq, sym, trans}, impossible::FalseData};
+use crate::{ctypes::{ContainedTerm, FinalTerm, Res, Scopeless, Term::*, lam_helper, pi_helper}, equals::{cong, refl, split_path, straight_eq, trans}};
 
 /// Returns a lambda that returns the successor
 pub fn successor_function() -> Res<ContainedTerm> {

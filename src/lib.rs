@@ -14,7 +14,6 @@ mod unique;
 /// The module that handles all of the internals of the prover
 /// The main thing to remember is [ctypes::Term::ctn] is necessary to build nested structs, as it interns the values to improve performance
 pub mod ctypes;
-mod notation;
 /// The module that handles displaying terms
 /// The term display portion is pretty basic, but miles more readable than raw de bruijn indices
 pub mod display;

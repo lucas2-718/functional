@@ -1,4 +1,4 @@
-use std::{array, cell::RefCell, cmp::Ordering, collections::HashSet, fmt::{Debug, Display}, hash::Hash, panic::Location, rc::Rc, thread::Scope};
+use std::{array, cell::RefCell, cmp::Ordering, collections::HashSet, fmt::{Debug, Display}, hash::Hash, panic::Location, rc::Rc};
 
 use memoize::memoize;
 use crate::{display::{AliasMap, pretty_print_base}, unique::{GlobalMap, Unique}};
@@ -250,7 +250,7 @@ impl ContainedTerm {
     pub fn check_refl(self,example: Self) -> Res<Option<Self>> {
         let result = App(self.clone(),example).ctn().blame()?;
         Ok(match self.pop() {
-            Lam(_,x,_) => if (result.clone().push_scope(0u8.into())?==x) {Some(result)} else {None},
+            Lam(_,x,_) => if result.clone().push_scope(0u8.into())?==x {Some(result)} else {None},
             _ => None
         })
     }
@@ -398,7 +398,7 @@ impl Context {
         Ok(Self{data})
     }
     fn get(&self, n: usize) -> Option<&ContainedTerm> {
-        if (n>=self.data.len()) {return None}
+        if n>=self.data.len() {return None}
         self.data.get(self.data.len()-1-n)
     }
     fn new() -> Self {
@@ -721,7 +721,7 @@ impl Term {
         Ok(match self {
             App(a,b) => { // a and b are already fully reduced
                 match a.clone().typed()?.pop() {Pi(arg,_out,_) => {
-                    if (arg.clone().check_equal(b.clone().typed()?)) {
+                    if arg.clone().check_equal(b.clone().typed()?) {
                         match a.pop() {
                             Lam(_arg,ret,_) => ret.subst(b,Natural::from(0u8))?,
                             a => App(a.ctn()?,b).ctn_unchecked(),
@@ -802,7 +802,7 @@ impl Term {
                 x => Not(x.ctn()?).ctn_unchecked()
             }
             And(mut i,mut j) => {
-                if (i>j) {((j,i) = (i,j))} //order terms to prevent exponential blowup
+                if i>j {(j,i) = (i,j)} //order terms to prevent exponential blowup
                 match (i.pop(),j.pop()) {
                     (IA,_) => IA.ctn()?,
                     (_,IA) => IA.ctn()?,
@@ -835,9 +835,9 @@ impl Term {
             EqLam(f) => {
                match f.clone().pop() {
                     Lam(ty,body,_) => match body.pop() {
-                        EqUw(e,x) => match (e.check_const(0u8.into())) {
+                        EqUw(e,x) => match e.check_const(0u8.into()) {
                             Ok(e) => match x.pop() {
-                                DeBrujin(n, val) => if (n==Natural::from(0u8) && val == ty) {e} else {
+                                DeBrujin(n, val) => if n==Natural::from(0u8) && val == ty {e} else {
                                     EqLam(f).ctn_unchecked()
                                 }
                                 _ => EqLam(f).ctn_unchecked()
@@ -850,10 +850,10 @@ impl Term {
                } 
             }
             Transp(f,x) => match f.clone().pop() {
-                Lam(ii,g,iname) => if (f.clone().check_refl(IA.ctn()?)?.is_some()) {x} else { 
+                Lam(ii,g,iname) => if f.clone().check_refl(IA.ctn()?)?.is_some() {x} else { 
                     match g.pop() { // g is the output
                         EqUw(lm,j) => {
-                            if (j == DeBrujin(0u8.into(), ii.clone()).ctn()?) {match lm.pop() {
+                            if j == DeBrujin(0u8.into(), ii.clone()).ctn()? {match lm.pop() {
                                 HComp { family, base, first, second } => {
                                     let lfirst = Lam(II.ctn().unwrap(),first,"i".into()).ctn()?;
                                     let lbase = Lam(II.ctn().unwrap(),base,"i".into()).ctn()?;
@@ -957,7 +957,7 @@ impl Term {
             HComp { family, base, first, second } => {
                 match (first.clone().pop(),second.clone().pop()) {
                     (EqLam(lfirst),EqLam(lsecond)) => {
-                        if (lfirst.check_refl(IA.ctn()?)?.is_some() && lsecond.check_refl(IA.ctn()?)?.is_some() && family.clone().check_refl(IA.ctn()?)?.is_some()) {
+                        if lfirst.check_refl(IA.ctn()?)?.is_some() && lsecond.check_refl(IA.ctn()?)?.is_some() && family.clone().check_refl(IA.ctn()?)?.is_some() {
                             return Ok(base);
                         }
                     },
@@ -967,9 +967,9 @@ impl Term {
             }
             Lam(ty,body,tyname) => {
                 match body.clone().pop() {
-                    App(f,x) => match (f.check_const(0u8.into())) {
+                    App(f,x) => match f.check_const(0u8.into()) {
                         Ok(f) => match x.pop() {
-                            DeBrujin(n, val) => if (n==Natural::from(0u8) && val == ty) {f} else {
+                            DeBrujin(n, val) => if n==Natural::from(0u8) && val == ty {f} else {
                                 Lam(ty,body,tyname).ctn_unchecked()
                             }
                             _ => Lam(ty,body,tyname).ctn_unchecked()
@@ -1044,12 +1044,12 @@ impl Term {
 
 #[track_caller]
 fn check_eq<A: std::fmt::Debug + std::cmp::Eq>(x: A, y: A) -> Res<()> {
-    if (x==y) {Ok(())} else {err_str(&format!("{:?}!={:?}",x,y))}
+    if x==y {Ok(())} else {err_str(&format!("{:?}!={:?}",x,y))}
 }
 
 /// Check if a value is well typed, and print its type
 pub fn check(t: ContainedTerm) {
-    match (t.clone().well_typed(Context::new())) {
+    match t.clone().well_typed(Context::new()) {
         Ok(_) => println!("Well typed!"),
         Err(v) => println!("Not well typed! {}",v),
     }

@@ -1,6 +1,5 @@
-use std::f32::consts::E;
 
-use crate::{ctypes::{ContainedTerm, Natural, Res, Term::*, check, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, display::{AliasMap, pretty_print_base}};
+use crate::ctypes::{ContainedTerm, Natural, Res, Term::*, lam_helper, lam_helper_poly, pi_helper_poly};
 
 /// Split a path over two interval variables
 /// Very useful for handling paths directly
