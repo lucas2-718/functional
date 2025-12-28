@@ -133,7 +133,7 @@ fn pretty_print(t: ContainedTerm, context: DisplayContext, mut tc: TypingContext
             output.push_str(": ");
             pretty_print(ty.clone(),oc,tc.clone(),output,aliases)?;
             output.push_str(" → ");
-            tc.push(ty);
+            tc.push(ty)?;
             pretty_print(body,context,tc,output,aliases)?;
             output.push(')');
         }
@@ -146,7 +146,7 @@ fn pretty_print(t: ContainedTerm, context: DisplayContext, mut tc: TypingContext
             output.push_str(": ");
             pretty_print(ty.clone(),oc,tc.clone(),output,aliases)?;
             output.push_str(" → ");
-            tc.push(ty);
+            tc.push(ty)?;
             pretty_print(body,context,tc,output,aliases)?;
             output.push(')');
         }
@@ -242,7 +242,7 @@ fn pretty_print(t: ContainedTerm, context: DisplayContext, mut tc: TypingContext
             pretty_print(second, context, tc, output, aliases)?;
             output.push('}');
         }
-        v => panic!("Unimplemented: {:?}",v),
+        // v => panic!("Unimplemented: {:?}",v),
     };
     Ok(())
 }

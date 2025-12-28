@@ -7,11 +7,12 @@ pub fn successor_function() -> Res<ContainedTerm> {
     lam_helper([], Nat.ctn()?, "n", |[],n|{Succ(n).ctn()})
 }
 
+
 /// A function where 0 => 0 and _ => 1
 /// Helpful for converting 0 = succ x to 0 = 1, which is what the false type is internally
 pub fn flatten_natural(n: ContainedTerm) -> Res<ContainedTerm> {
     let fam = Pi(Nat.ctn()?,Nat.ctn()?,"_".into()).ctn()?;
-    App(App(NatInd(n, 0u8.into()).ctn()?,Zero.ctn()?).ctn()?,Lam(Nat.ctn()?, Lam(Nat.ctn()?, Succ(Zero.ctn()?).ctn()?, "_".into()).ctn()?, "_".into()).ctn()?).ctn()
+    App(App(App(NatInd(n, 0u8.into()).ctn()?,fam).ctn()?,Zero.ctn()?).ctn()?,Lam(Nat.ctn()?, Lam(Nat.ctn()?, Succ(Zero.ctn()?).ctn()?, "_".into()).ctn()?, "_".into()).ctn()?).ctn()
 }
 
 /// Proof that all values of 0=0 are in fact refl
@@ -97,7 +98,7 @@ impl NatData {
         let addition = lam_helper([], Nat.ctn()?, "n", |[],n|{
             let family = Lam(Nat.ctn()?,Pi(Nat.ctn()?,Nat.ctn()?,"x".into()).ctn()?,"n".into()).ctn()?;
             let base = lam_helper([], Nat.ctn()?, "x", |[],x|{Ok(x)})?;
-            let step = lam_helper([],Nat.ctn()?,"n",|[],n|{
+            let step = lam_helper([],Nat.ctn()?,"n",|[],_|{
                 lam_helper([], Pi(Nat.ctn()?,Nat.ctn()?,"n".into()).ctn()?, "f", |[],f|{
                     lam_helper([f], Nat.ctn()?, "x", |[f],x|{
                         // add (S n) ? = S (add n ?)
@@ -162,8 +163,8 @@ impl NatData {
                     straight_eq(App(App(addition.clone(),x.clone()).ctn()?,y.clone()).ctn()?, App(App(addition,y).ctn()?,x).ctn()?)
                 })?;
                 let base = App(azr,x.clone()).ctn()?;
-                let step = lam_helper([addition,x,asr,family.clone()], Nat.ctn()?, "y", |[addition,x,asr,fam],y|{
-                    lam_helper([addition,x,y.clone(),asr], App(fam,y).ctn()?, "prev", |[addition,x,y,asr],prev|{
+                let step = lam_helper([x,asr,family.clone()], Nat.ctn()?, "y", |[x,asr,fam],y|{
+                    lam_helper([x,y.clone(),asr], App(fam,y).ctn()?, "prev", |[x,y,asr],prev|{
                         trans(App(App(asr,x).ctn()?,y).ctn()?,cong(successor_function()?,prev)?)
                     })
                 })?;

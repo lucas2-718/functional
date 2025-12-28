@@ -1,5 +1,5 @@
 
-use crate::ctypes::{ContainedTerm, Natural, Res, Term::*, lam_helper, lam_helper_poly, pi_helper_poly};
+use crate::ctypes::{ContainedTerm, FinalTerm, Natural, Res, Scopeless, Term::*, lam_helper, lam_helper_poly, pi_helper_poly};
 
 /// Split a path over two interval variables
 /// Very useful for handling paths directly
@@ -23,12 +23,12 @@ pub fn split_path(eq: ContainedTerm, i1: ContainedTerm, i2: ContainedTerm) -> Re
 /// Transitive principle of equality, allows you to concatenate paths
 /// watch out for higher paths with this one, hcomp in this prover has issues with higher paths
 /// this should work at least when you would expect regular J to work, however
-pub fn trans(eqA: ContainedTerm, eqB: ContainedTerm) -> Res<ContainedTerm> {
-    let cfirst = EqUw(eqA.clone(),IA.ctn()?).ctn()?;
-    let family = EqLam(lam_helper([eqB,cfirst], II.ctn()?, "i", |[eqB,cfirst],i|{
-        straight_eq(cfirst, EqUw(eqB,i).ctn()?)
+pub fn trans(eq_a: ContainedTerm, eq_b: ContainedTerm) -> Res<ContainedTerm> {
+    let cfirst = EqUw(eq_a.clone(),IA.ctn()?).ctn()?;
+    let family = EqLam(lam_helper([eq_b,cfirst], II.ctn()?, "i", |[eq_b,cfirst],i|{
+        straight_eq(cfirst, EqUw(eq_b,i).ctn()?)
     })?).ctn()?;
-    transport_eq(family, eqA)
+    transport_eq(family, eq_a)
 }
 
 /// Switch path : a = b to sym path : b = a by symmetric principle of equality
@@ -62,24 +62,28 @@ pub fn refl(a: ContainedTerm) -> Res<ContainedTerm> {
 
 /// A struct containing various theorems about equality
 /// Axiom J: ∀ (T: Type) (a: T) (f: ∀ (b: T) (h: a ≡ b), Type), f a (λ i => a) → ∀ (b: T) (h: a ≡ b), f b h
-/// Contractibility of singletons : ∀ (T: Type) (a: T) (s: Σ (b: T), (a ≡ b)), s = (a,refl)
+/// Contractibility of singletons : ∀ (T: Type) (a: T) (s: Σ (b: T), (a ≡ b)), s ≡ (a,refl)
 #[derive(Clone)]
 pub struct EqualTheorems {
-    sig_contr: ContainedTerm,
-    axiom_j: ContainedTerm,
+    /// Contractibility of the dependent pair with equality with a base at (x, refl)
+    /// sig_contr : ∀ (T: Type@n) (a: T) (p: Σ b: T, a ≡ b), (a, refl a) ≡ p
+    pub sig_contr: FinalTerm,
+    /// The standard based axiom J
+    /// J : ∀ (T: Type@n) (a: T) (f: ∀ (b: T) (h: a ≡ b), Type@m), f a (λ i => a) → ∀ (b: T) (h: a ≡ b), f b h
+    pub axiom_j: FinalTerm,
 }
+
+impl Scopeless for EqualTheorems {}
 
 impl EqualTheorems {
     /// Create a new instance based on two universe levels
-    /// n controls the input universe level
-    /// m controls the output universe level
+    /// n controls the input universe level (not used for sig_contr)
+    /// m controls the output universe level (used for axiom J)
     pub fn new(n: Natural, m: Natural) -> Res<EqualTheorems> {
-        // target - based J
-        // intermediate - contractibility of sigma
         
         let sig_contr = lam_helper_poly([],Universe(n).ctn()?,"ty",[n],|[],ty,[n]|{
             lam_helper_poly([ty.clone()],ty,"a",[n],|[ty],a,[n]|{
-                let eqtyf = lam_helper([ty.clone(),a.clone()], ty.clone(), "b",|[ty,a],b|{
+                let eqtyf = lam_helper([a.clone()], ty.clone(), "b",|[a],b|{
                     straight_eq(a, b)
                 })?;
                 // eqtyf = λ b: T, a ≡ b
@@ -91,9 +95,9 @@ impl EqualTheorems {
                     App(App(SigInd(p, n.suc()).ctn()?,lam_helper([eqtyf.clone(),a.clone()],pty,"p",|[eqtyf,a],p|{
                         straight_eq(Pair(eqtyf,a.clone(),refl(a)?).ctn()?, p)
                     })?).ctn()?,{
-                        lam_helper([a,eqtyf],ty,"b",|[a,eqtyf],b|{
-                            lam_helper([a,eqtyf.clone(),b.clone()],App(eqtyf,b).ctn()?,"p",|[a,eqtyf,b],p|{
-                                EqLam(lam_helper([eqtyf,a,b,p],II.ctn()?,"i",|[eqtyf,a,b,p],i|{
+                        lam_helper([eqtyf],ty,"b",|[eqtyf],b|{
+                            lam_helper([eqtyf.clone()],App(eqtyf,b).ctn()?,"p",|[eqtyf],p|{
+                                EqLam(lam_helper([eqtyf,p],II.ctn()?,"i",|[eqtyf,p],i|{
                                     Pair(eqtyf,EqUw(p.clone(),i.clone()).ctn()?,EqLam(lam_helper([p,i],II.ctn()?,"j",|[p,i],j|{
                                         EqUw(p,And(i,j).ctn()?).ctn()
                                     })?).ctn()?).ctn()
@@ -109,10 +113,10 @@ impl EqualTheorems {
         // J = λ (T: Type) (a: T) (f: ∀ (b: T) (h: a ≡ b), Type) (initial: f a (λ i => a)) (b: T) (h: a ≡ b) =>
         //          transp (λ i => f (h i) (λ j => h (i ∧ j))) initial
 
-        let J = lam_helper_poly([], Universe(n).ctn()?, "T",[m],|[],ty,[m]|{
+        let j = lam_helper_poly([], Universe(n).ctn()?, "T",[m],|[],ty,[m]|{
             lam_helper_poly([ty.clone()], ty, "a", [m], |[ty],a,[m]|{
                 let fty = pi_helper_poly([a.clone()], ty.clone(), "b", [m], |[a],b,[m]|{
-                    pi_helper_poly([], straight_eq(a, b)?, "h", [m], |[],h,[m]|{
+                    pi_helper_poly([], straight_eq(a, b)?, "h", [m], |[],_,[m]|{
                         Universe(m).ctn()
                     })
                 })?;
@@ -134,6 +138,6 @@ impl EqualTheorems {
 
         
 
-        Ok(Self { sig_contr, axiom_j: J })
+        Ok(Self { sig_contr : sig_contr.fin()?, axiom_j: j.fin()? })
     }
 }

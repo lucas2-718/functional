@@ -50,8 +50,8 @@ impl BoolData {
         let famtype = pi_helper_poly([], self.bool_type.get(), "_", [n], |[],_,[n]|{Universe(n).ctn()})?;
         let ind = lam_helper_poly([b,self.trim.get(),self.bool_false.get(),self.bool_true.get(),self.bool_fam.get()], famtype, "fam", [n], |[b,trim,bfalse,btrue,bfam],fam,[n]|{
             let true_family = lam_helper([fam.clone(),bfalse.clone(),btrue.clone()], Sig(bfam.clone()).ctn()?, "b", |[fam,bfalse,btrue],b|{
-                pi_helper([btrue,fam.clone(),b], App(fam,bfalse).ctn()?, "vf", |[btrue,fam,b],vf|{
-                    pi_helper([fam.clone(),b], App(fam,btrue).ctn()?, "vt", |[fam,b],vt|{
+                pi_helper([btrue,fam.clone(),b], App(fam,bfalse).ctn()?, "vf", |[btrue,fam,b],_|{
+                    pi_helper([fam.clone(),b], App(fam,btrue).ctn()?, "vt", |[fam,b],_|{
                         App(fam,b).ctn()
                     })
                 })
@@ -64,9 +64,9 @@ impl BoolData {
                 // (hyp : 0 = 0) -> (vf: fam (0, refl 0)) -> (vt: fam (1, refl 0)) : fam (1, hyp) := transport vt over refl 0 = hyp
                 // (hyp : 0 = 1) : (vf: fam (0, refl 0)) -> (vt: fam (1, refl 0)) -> fam (2 + n, hyp) := exfalso into the family
                 let indfam = lam_helper([bfalse.clone(),btrue.clone(),fam.clone(),trim,bfam.clone()], Nat.ctn()?, "n", |[bfalse,btrue,fam,trim,bfam],n|{
-                    pi_helper([n.clone(),bfalse,btrue,fam,trim.clone(),bfam], straight_eq(Zero.ctn()?,App(trim,n).ctn()?)?, "hyp", |[n,bfalse,btrue,fam,trim,bfam],hyp|{
-                        pi_helper([n.clone(),btrue,fam.clone(),trim,bfam,hyp],App(fam,bfalse).ctn()?,"vf",|[n,btrue,fam,trim,bfam,hyp],_|{
-                            pi_helper([n.clone(),fam.clone(),trim,bfam,hyp], App(fam,btrue).ctn()?, "vt", |[n,fam,trim,bfam,hyp],_|{
+                    pi_helper([n.clone(),bfalse,btrue,fam,bfam], straight_eq(Zero.ctn()?,App(trim,n).ctn()?)?, "hyp", |[n,bfalse,btrue,fam,bfam],hyp|{
+                        pi_helper([n.clone(),btrue,fam.clone(),bfam,hyp],App(fam,bfalse).ctn()?,"vf",|[n,btrue,fam,bfam,hyp],_|{
+                            pi_helper([n.clone(),fam.clone(),bfam,hyp], App(fam,btrue).ctn()?, "vt", |[n,fam,bfam,hyp],_|{
                                 App(fam,Pair(bfam,n,hyp).ctn()?).ctn()
                             })
                         })
@@ -75,7 +75,7 @@ impl BoolData {
                 
                 let fam0 = lam_helper([bfalse.clone(),btrue.clone(),bfam.clone(),fam.clone()],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[bfalse,btrue,bfam,fam],hyp|{
                     lam_helper([btrue,bfam,fam.clone(),hyp],App(fam,bfalse).ctn()?,"vf",|[btrue,bfam,fam,hyp],vf|{
-                        lam_helper([bfam,fam.clone(),hyp,vf], App(fam,btrue).ctn()?, "vt", |[bfam,fam,hyp,vf],vt|{
+                        lam_helper([bfam,fam.clone(),hyp,vf], App(fam,btrue).ctn()?, "vt", |[bfam,fam,hyp,vf],_|{
                             // goal = fam (0, hyp)
                             // have = fam (0, refl 0)
                             // refl = hyp
@@ -92,8 +92,8 @@ impl BoolData {
                 })?;
 
                 let fam1 = lam_helper([bfalse.clone(),btrue.clone(),bfam.clone(),fam.clone()],straight_eq(Zero.ctn()?, Zero.ctn()?)?,"hyp",|[bfalse,btrue,bfam,fam],hyp|{
-                    lam_helper([btrue,bfam,fam.clone(),hyp],App(fam,bfalse).ctn()?,"vf",|[btrue,bfam,fam,hyp],vf|{
-                        lam_helper([bfam,fam.clone(),hyp,vf], App(fam,btrue).ctn()?, "vt", |[bfam,fam,hyp,vf],vt|{
+                    lam_helper([btrue,bfam,fam.clone(),hyp],App(fam,bfalse).ctn()?,"vf",|[btrue,bfam,fam,hyp],_|{
+                        lam_helper([bfam,fam.clone(),hyp], App(fam,btrue).ctn()?, "vt", |[bfam,fam,hyp],vt|{
                             // goal = fam (1, hyp)
                             // have = fam (1, refl 0)
                             // refl = hyp
@@ -123,12 +123,12 @@ impl BoolData {
 
 
                 let partial = App(App(App(NatInd(n, u).ctn()?,indfam.clone()).ctn()?,fam0).ctn()?,lam_helper_poly([fam1,fam2,indfam], Nat.ctn()?, "n1", [u],|[fam1,fam2,indfam],n1,[u]|{
-                    let new_indfam = lam_helper_poly([indfam.clone()], Nat.ctn()?, "n", [u],|[indfam],n,[u]|{
+                    let new_indfam = lam_helper([indfam.clone()], Nat.ctn()?, "n",|[indfam],n|{
                         App(indfam,Succ(n).ctn()?).ctn()
                     })?;
                     lam_helper_poly([fam1,fam2,new_indfam.clone(),n1.clone()], App(indfam,n1).ctn()?, "_", [u],|[fam1,fam2,indfam,n1],_,[u]|{
                         App(App(App(NatInd(n1, u).ctn()?,indfam.clone()).ctn()?,fam1).ctn()?,lam_helper([fam2,indfam], Nat.ctn()?, "n2", |[fam2,indfam],n2|{
-                            lam_helper([fam2,indfam.clone(),n2.clone()],App(indfam,n2).ctn()?,"_",|[fam2,indfam,n2],_|{
+                            lam_helper([fam2,n2.clone()],App(indfam,n2).ctn()?,"_",|[fam2,n2],_|{
                                 App(fam2,n2).ctn()
                             })
                         })?).ctn()
