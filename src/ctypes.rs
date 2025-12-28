@@ -167,7 +167,7 @@ impl GlobalMap<Term> for GM {
     }
 }
 
-/// An abstraction for a term structure, and can be conceptually considered like an Rc<Term> with a ton of caching
+/// An abstraction for a term structure, and can be conceptually considered like an Rc of a [Term] with a ton of caching
 /// Due to interning, hashing and equality testing is O(n)
 /// Also caches many functions on each term
 /// Cloning is in fact quite cheap for this, because it is just an Rc
@@ -370,7 +370,7 @@ pub enum Term { // every term is a type
     /// Sig(family: ?A -> ?B): Type{max(universe of A, universe of B)}
     Sig(ContainedTerm), // Sig works on a function
     /// A pair is a specific instance of a [Sig]
-    /// Pair(family: ?A -> ?B, a: A, b: F a): [Sig](family)
+    /// Pair(family: ?A -> ?B, a: A, b: F a): [Sig] (family)
     Pair(ContainedTerm,ContainedTerm,ContainedTerm), // Pair(F: A -> Type, a: A, F a)
     /// Dependent sum type induction principle
     /// SigInd(x): ∀ T: Sig B -> Type, q: (∀ a: A, b: B a, T (sig B a b)), T x

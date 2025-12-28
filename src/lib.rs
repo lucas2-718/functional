@@ -1,14 +1,13 @@
-#![allow(unused,non_snake_case)]
 #![warn(missing_docs)]
 
 //! This crate implements dependent type equations at runtime, allowing proofs of simple things such as a + b = b + a
 //! To convert proofs from another proof language into this language: 
 //! - the function [ctypes::lam_helper] and [ctypes::pi_helper] (and their polymorphic variants) will be useful for creating functions and pi types
 //! - the enum [ctypes::Term::Sig] will serve as the sigma type
-//! - for most normal stuff with equality types, use [equals::straight_eq], [equals::refl], and Axiom J from [equals::Theorems]
+//! - for most normal stuff with equality types, use [equals::straight_eq], [equals::refl], and Axiom J from [equals::EqualTheorems]
 //! - refer to the variants in [ctypes::Term] for more fine control over the proofs
 //! - there is no way to construct inductive types, but many can be constructed by creating a larger type than intended and pruning it by pairing it with an equality that only holds in some cases
-//! - refer to [bool] for an example implementation of this concept.
+//! - refer to [mod@bool] for an example implementation of this concept.
 //! - use [ctypes::FinalTerm] to finalize a proof and ensure that it is correct - i.e. doesn't rely on lambda parameters that don't exist
 
 mod unique;
