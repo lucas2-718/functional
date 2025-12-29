@@ -1,6 +1,7 @@
 use crate::{ctypes::{ContainedTerm, ErrorType, FinalTerm, Res, Scopeless, Term::*, lam_helper, lam_helper_poly}, equals::straight_eq};
 
 /// Basic data about the type with no inhabitants, False
+/// 
 /// False is internally represented by 0 = 1, so any value of that may be used as a value of false
 #[derive(Clone)]
 pub struct FalseData {

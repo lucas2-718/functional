@@ -2,10 +2,11 @@
 use crate::ctypes::{ContainedTerm, FinalTerm, Natural, Res, Scopeless, Term::*, lam_helper, lam_helper_poly, pi_helper_poly};
 
 /// Split a path over two interval variables
+/// 
 /// Very useful for handling paths directly
-/// split_path(eq,IA,IB) = eq
-/// split_path(eq,IB,IA) = sym eq
-/// split_path(eq,x,x) = refl (eq x)
+/// - split_path(eq,IA,IB) = eq
+/// - split_path(eq,IB,IA) = sym eq
+/// - split_path(eq,x,x) = refl (eq x)
 pub fn split_path(eq: ContainedTerm, i1: ContainedTerm, i2: ContainedTerm) -> Res<ContainedTerm> {
     // (i2 and i) or (i1 and not i)
     // not (not (i2 and i) and not (i1 and not i))
@@ -20,9 +21,11 @@ pub fn split_path(eq: ContainedTerm, i1: ContainedTerm, i2: ContainedTerm) -> Re
     })?).ctn()
 }
 
-/// Transitive principle of equality, allows you to concatenate paths
+/// Transitive principle of equality, allows you to concatenate paths, but
+/// 
 /// watch out for higher paths with this one, hcomp in this prover has issues with higher paths
-/// this should work at least when you would expect regular J to work, however
+/// 
+/// This should work at least when you would expect regular J to work, however
 pub fn trans(eq_a: ContainedTerm, eq_b: ContainedTerm) -> Res<ContainedTerm> {
     let cfirst = EqUw(eq_a.clone(),IA.ctn()?).ctn()?;
     let family = EqLam(lam_helper([eq_b,cfirst], II.ctn()?, "i", |[eq_b,cfirst],i|{
@@ -37,6 +40,7 @@ pub fn sym(eq: ContainedTerm) -> Res<ContainedTerm> {
 }
 
 /// Congruent principle of equality
+/// 
 /// cong(func,eq: a = b) : func a = func b 
 pub fn cong(func: ContainedTerm, eq: ContainedTerm) -> Res<ContainedTerm> {
     EqLam(lam_helper([func,eq], II.ctn()?, "i", |[func,eq],i|{
@@ -55,20 +59,25 @@ pub fn straight_eq(a: ContainedTerm, b: ContainedTerm) -> Res<ContainedTerm> {
 }
 
 /// principle of reflexivity
+/// 
 /// refl a : a ≡ a
 pub fn refl(a: ContainedTerm) -> Res<ContainedTerm> {
     EqLam(lam_helper([a],II.ctn()?,"i",|[a],_|{Ok(a)})?).ctn()
 }
 
 /// A struct containing various theorems about equality
+/// 
 /// Axiom J: ∀ (T: Type) (a: T) (f: ∀ (b: T) (h: a ≡ b), Type), f a (λ i => a) → ∀ (b: T) (h: a ≡ b), f b h
+/// 
 /// Contractibility of singletons : ∀ (T: Type) (a: T) (s: Σ (b: T), (a ≡ b)), s ≡ (a,refl)
 #[derive(Clone)]
 pub struct EqualTheorems {
     /// Contractibility of the dependent pair with equality with a base at (x, refl)
+    /// 
     /// sig_contr : ∀ (T: Type@n) (a: T) (p: Σ b: T, a ≡ b), (a, refl a) ≡ p
     pub sig_contr: FinalTerm,
     /// The standard based axiom J
+    /// 
     /// J : ∀ (T: Type@n) (a: T) (f: ∀ (b: T) (h: a ≡ b), Type@m), f a (λ i => a) → ∀ (b: T) (h: a ≡ b), f b h
     pub axiom_j: FinalTerm,
 }
@@ -77,7 +86,9 @@ impl Scopeless for EqualTheorems {}
 
 impl EqualTheorems {
     /// Create a new instance based on two universe levels
-    /// n controls the input universe level (not used for sig_contr)
+    /// 
+    /// n controls the input universe level (used for both)
+    /// 
     /// m controls the output universe level (used for axiom J)
     pub fn new(n: Natural, m: Natural) -> Res<EqualTheorems> {
         

@@ -289,20 +289,29 @@ impl std::fmt::Debug for ContainedTerm {
 #[derive(Clone,PartialEq, Eq, Debug, Hash)]
 pub enum Term { // every term is a type
     /// DeBruijin is conceptually a variable
+    /// 
     /// The number inside indicates how many lambdas outside of it hold the variable
+    /// 
     /// For example, in λ x => λ y => x, the return value, "x" would have an index of 1, but in λ x => λ y => y, the return value "y", would have an index of 0.
+    /// 
     /// DeBruijin(Index,Type)
     DeBrujin(Natural,ContainedTerm), // next term is its type
     /// A lambda abstraction
+    /// 
     /// It is not recommended to use this directly, as the [lam_helper] and [lam_helper_poly] functions handle De Bruijn indices for you
+    /// 
     /// Does eta-reduction -- λ x => f x reduces to f
+    /// 
     /// Lam(Type,Rvalue,VariableName)
     Lam(ContainedTerm,ContainedTerm,Naming), // lam _: 0 => 1{_}
     /// Basically the same as lambda, but the rvalue indicates the return type of the lambda that it types
+    /// 
     /// Similarly to [Lam], not recommended to be used directly, refer to [pi_helper] and [pi_helper_poly] instead.
+    /// 
     /// Pi(Type,Rtype,VariableName)
     Pi(ContainedTerm,ContainedTerm,Naming), // pi _: 0, 1{_}
     /// A function application, which reduces if the input function is a concrete lambda and not a variable
+    /// 
     /// App(Function,Value)
     App(ContainedTerm,ContainedTerm),
     /// A type universe, of which none are impredicative.  The lack of impredicativity may be changed in the future
@@ -314,8 +323,11 @@ pub enum Term { // every term is a type
     /// The successor of a natural number
     Succ(ContainedTerm), // +1
     /// The natural induction principle
+    /// 
     /// the type of this for some number m is Π (F: ℕ → Type) (init: F 0) (next: Π (n: ℕ) (x: F n), F (S n)), F m
+    /// 
     /// reduces on any number [Zero] or [Succ]
+    /// 
     /// NatInd(Number,Universe)
     NatInd(ContainedTerm,Natural), // value upon which nat_ind is called
     /// The interval type -- it has no inductor or recursor so [IA] and [IB] may not be distinguished
@@ -325,33 +337,51 @@ pub enum Term { // every term is a type
     /// The second element of the interval type
     IB,
     /// The not function on the interval type
+    /// 
     /// Not([IA]) = [IB] and Not([IB]) = [IA]
+    /// 
     /// Not(Not(i)) = i
     Not(ContainedTerm),
     /// The and function on the interval type
+    /// 
     /// And([IA],_) = [IA]; And(_,[IA]) = [IA]; And([IB],i) = i; And(i,[IB]) = i;
     And(ContainedTerm,ContainedTerm),
     /// Converts a function f: Π (i: [II]) => T{i} to a value of Eq(λ (i: [II]) => T{i},f [IA],f [IB])
+    /// 
     /// Records endpoints of function
     EqLam(ContainedTerm),
     /// The dependent equality type
+    /// 
     /// Eq(Family,First,Second)
+    /// 
     /// When the family is constant, behaves like the standard equality type First = Second
     Eq(ContainedTerm,ContainedTerm,ContainedTerm), // Eq (F: II -> Type) (fa: F IA) (fb: F IB)
     /// Equality application -- unwraps the function represented by a value of type Eq, and computes the result
+    /// 
     /// Definitionally computes when applied value is [IA] or [IB]
+    /// 
     /// EqUw(EqLam(x),i) = x i
+    /// 
     /// EqUw(?: Eq(_,a,b),[IA]) = a
+    /// 
     /// EqUw(?: Eq(_,a,b),[IB]) = b
     EqUw(ContainedTerm,ContainedTerm), // Unwrap an element of Eq into a function that definitionally computes, and apply it
     /// Homogenous composition operator
+    /// 
     /// Basically, given a family over two interval values
+    /// 
     /// Compose three paths along the edges of the family
+    /// 
     /// returns a value upon the path family I₁
+    /// 
     /// dependent triple-composition
+    /// 
     /// given a = b, a = c, b = d, then c = d
+    /// 
     /// As of right now, HComp does not compute very well
+    /// 
     /// While it has been updated, 1d paths are the only paths that will compute, and higher paths will get stuck
+    /// 
     /// Transport across said higher paths might also get stuck due to the way HComp is written here
     HComp{
         /// A function II -> II -> Type indicating the family over which to compose
@@ -364,15 +394,19 @@ pub enum Term { // every term is a type
         second: ContainedTerm, 
     }, // ?c = ?d ? family I₁ i
     /// Transport operator
+    /// 
     /// Transp(function: [II] -> Type, v: f [IA]): f [IB]
     Transp(ContainedTerm,ContainedTerm), // f : II -> Type -> f IA -> f IB
     /// Dependent sum type
+    /// 
     /// Sig(family: ?A -> ?B): Type{max(universe of A, universe of B)}
     Sig(ContainedTerm), // Sig works on a function
     /// A pair is a specific instance of a [Sig]
+    /// 
     /// Pair(family: ?A -> ?B, a: A, b: F a): [Sig] (family)
     Pair(ContainedTerm,ContainedTerm,ContainedTerm), // Pair(F: A -> Type, a: A, F a)
     /// Dependent sum type induction principle
+    /// 
     /// SigInd(x): ∀ T: Sig B -> Type, q: (∀ a: A, b: B a, T (sig B a b)), T x
     /// 
     /// SigInd(Pair(F,a,b)) = λ T: Sig B -> Type, q: (∀ a: A, b: B a, T (sig B a b)), q a b
@@ -424,8 +458,7 @@ impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Sc
 impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless, J: Scopeless, K: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I,J,K) {}
 impl<A: Scopeless, B: Scopeless, C: Scopeless, D: Scopeless, E: Scopeless, F: Scopeless, G: Scopeless, H: Scopeless, I: Scopeless, J: Scopeless, K: Scopeless, L: Scopeless> Scopeless for (A,B,C,D,E,F,G,H,I,J,K,L) {}
 
-/// A final term that can stand on its own and has no unbound variables
-/// Is scopeless
+/// A final term that can stand on its own and has no unbound variables, and is therefore scopeless
 #[derive(Clone,Hash,PartialEq,Eq)]
 pub struct FinalTerm(ContainedTerm);
 impl FinalTerm {
@@ -452,13 +485,15 @@ impl Debug for FinalTerm {
 use Term::*;
 
 /// Helper to create a lambda
-/// the first array is the objects to bring inside the lambda
-/// the second value is the type of the parameter
-/// the third value is the name of the parameter
-/// and the final function is the function you are trying to make
+/// - the first array is the objects to bring inside the lambda
+/// - the second value is the type of the parameter
+/// - the third value is the name of the parameter
+/// - the final function is the function you are trying to make
 /// internally, this just pushes the scope of all of the given terms, and then gives as an argument to the closure
-/// weird lifetime errors probably means you are trying to reuse something from the external scope
-/// which can be done, but probably isn't what you want to do, as external variable references won't work correctly without the helper
+/// 
+/// weird lifetime errors probably means you are trying to reuse something from the external scope,
+/// which can be done with move and clone, but probably isn't what you want to do, as external variable references won't work correctly without the helper
+/// 
 /// refer to [lam_helper_poly] for sending scopeless variables (like universe levels) across the scope boundary
 pub fn lam_helper<const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, f: impl Fn([ContainedTerm; N], ContainedTerm) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
     let mut sp2: [ContainedTerm; N] = array::from_fn(|_|{II.ctn().unwrap()});
@@ -472,7 +507,7 @@ pub fn lam_helper<const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, nam
 }
 
 
-/// the same as [lam_helper], but the extra array allows universe levels to be brought into the body of the lambda for polymorphism
+/// the same as [lam_helper], but the extra array allows universe levels (and other scopeless objects) to be brought into the body of the lambda for polymorphism
 pub fn lam_helper_poly<Q: Scopeless + 'static, const N: usize>(sp: [ContainedTerm; N], ty: ContainedTerm, name: impl Into<Naming>, nums: Q, f: impl Fn([ContainedTerm; N], ContainedTerm, Q) -> Res<ContainedTerm> + 'static) -> Res<ContainedTerm> {
     lam_helper(sp,ty,name,move |sp,ty|{
         f(sp,ty,nums.clone())
@@ -542,6 +577,7 @@ pub fn sig_ex1(family: ContainedTerm) -> Res<ContainedTerm> {
 
 impl Term {
     /// Convert a term into a [ContainedTerm], reducing it in the process as all contained terms are reducted.
+    /// 
     /// If it fails to reduce, return an error value
     #[track_caller]
     pub fn ctn(self) -> Res<ContainedTerm> {

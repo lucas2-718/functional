@@ -9,6 +9,7 @@ pub fn successor_function() -> Res<ContainedTerm> {
 
 
 /// A function where 0 => 0 and _ => 1
+/// 
 /// Helpful for converting 0 = succ x to 0 = 1, which is what the false type is internally
 pub fn flatten_natural(n: ContainedTerm) -> Res<ContainedTerm> {
     let fam = Pi(Nat.ctn()?,Nat.ctn()?,"_".into()).ctn()?;
@@ -16,6 +17,7 @@ pub fn flatten_natural(n: ContainedTerm) -> Res<ContainedTerm> {
 }
 
 /// Proof that all values of 0=0 are in fact refl
+/// 
 /// produces a term typed (h : 0 = 0) -> refl 0 = h
 pub fn zero_eq_trivial() -> Res<FinalTerm> {
     // Proving that (h : 0=0) -> refl 0 = h is relatively trivial
@@ -75,17 +77,23 @@ pub fn zero_eq_trivial() -> Res<FinalTerm> {
 #[derive(Clone,Debug)]
 pub struct NatData {
     /// The function that does addition
+    /// 
     /// Works about how you would expect, but only computes on first argument
+    /// 
     /// Use [NatData::add_zero_right] and [NatData::add_succ_right] to do things as if it computes on the second argument
-    /// Or use [NatData::add_sym], but that involves concatenated paths, which might cause problems 
+    /// 
+    /// Alternately use [NatData::add_sym], but that involves concatenated paths, which might cause problems 
     pub add_func: FinalTerm,
     /// Proof that (x : nat) -> add x 0 = x
+    /// 
     /// Analogue to left computation rule on zero
     pub add_zero_right: FinalTerm,
     /// Proof that (x y : nat) -> add x (S y) = S (add x y)
+    /// 
     /// Analogue to left computation rule on successor
     pub add_succ_right: FinalTerm,
     /// Proof that (x y : nat) -> add x y = add y x
+    /// 
     /// Symmetric property of addition
     pub add_sym: FinalTerm
 }
