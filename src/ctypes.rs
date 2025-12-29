@@ -7,9 +7,11 @@ use crate::{display::{AliasMap, pretty_print_base}, unique::{GlobalMap, Unique}}
 /// 
 /// Simulates a natural number, and panics if it gets too big (which will probably never happen)
 /// ```
-/// let number : Natural = 0u8.into()
+/// use functional::ctypes::Natural;
+/// 
+/// let number : Natural = 0u8.into();
 /// let number = number.suc().suc().pred();
-/// assert_eq!(number,Natural::from(1u8.into()));
+/// assert_eq!(number,Natural::from(1u8));
 /// ```
 #[derive(Hash,Eq,PartialEq,Ord,PartialOrd,Clone,Copy)]
 pub struct Natural(usize);
