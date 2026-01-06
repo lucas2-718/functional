@@ -38,7 +38,9 @@ fn run() {
 
     println!("added terms result : {}",App(App(natdata.add_func.get(),num(x)).ctn().unwrap(),num(y)).ctn().unwrap().get_number().unwrap());
 
+    println!("Press enter to exit");
 
+    stdin().read_line(&mut String::new()).unwrap();
 }
 
 fn main(){
