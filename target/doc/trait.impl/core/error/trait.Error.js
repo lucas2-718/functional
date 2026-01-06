@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["either",[["impl&lt;L, R&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"either/enum.Either.html\" title=\"enum either::Either\">Either</a>&lt;L, R&gt;<div class=\"where\">where\n    L: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a>,\n    R: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a>,</div>"]]],["lazy_rc",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"lazy_rc/enum.InitError.html\" title=\"enum lazy_rc::InitError\">InitError</a>"]]],["proc_macro2",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"struct\" href=\"proc_macro2/struct.LexError.html\" title=\"struct proc_macro2::LexError\">LexError</a>"]]],["syn",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"struct\" href=\"syn/struct.Error.html\" title=\"struct syn::Error\">Error</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[593,264,279,246]}

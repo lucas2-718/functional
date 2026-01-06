@@ -1,0 +1,1 @@
+searchState.loadedDescShard("memoize_inner", 0, "memoize is an attribute to create a memoized version of a …")

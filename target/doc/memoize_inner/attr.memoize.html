@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="memoize is an attribute to create a memoized version of a (simple enough) function."><title>memoize in memoize_inner - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="memoize_inner" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../static.files/storage-82c7156e.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc attr"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../memoize_inner/index.html">memoize_<wbr>inner</a><span class="version">0.5.1</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">memoize_inner</a></div><h1>Attribute Macro <span class="attr">memoize</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/memoize_inner/lib.rs.html#272-460">Source</a> </span></div><pre class="rust item-decl"><code>#[memoize]</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>memoize is an attribute to create a memoized version of a (simple enough) function.</p>
+<p>So far, it works on non-method functions with one or more arguments returning a <a href="https://doc.rust-lang.org/1.87.0/core/clone/trait.Clone.html" title="trait core::clone::Clone"><code>Clone</code></a>-able
+value. Arguments that are cached must be <a href="https://doc.rust-lang.org/1.87.0/core/clone/trait.Clone.html" title="trait core::clone::Clone"><code>Clone</code></a>-able and <a href="https://doc.rust-lang.org/1.87.0/core/hash/macros/derive.Hash.html" title="derive core::hash::macros::Hash"><code>Hash</code></a>-able as well. Several clones
+happen within the storage and recall layer, with the assumption being that <code>memoize</code> is used to
+cache such expensive functions that very few <code>clone()</code>s do not matter. <code>memoize</code> doesn’t work on
+methods (functions with <code>[&amp;/&amp;mut/]self</code> receiver).</p>
+<p>Calls are memoized for the lifetime of a program, using a statically allocated, Mutex-protected
+HashMap.</p>
+<p>Memoizing functions is very simple: As long as the above-stated requirements are fulfilled,
+simply use the <code>#[memoize::memoize]</code> attribute:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>memoize::memoize;
+<span class="attr">#[memoize]
+</span><span class="kw">fn </span>hello(arg: String, arg2: usize) -&gt; bool {
+     arg.len()%<span class="number">2 </span>== arg2
+}
+
+<span class="comment">// `hello` is only called once.
+</span><span class="macro">assert!</span>(! hello(<span class="string">"World"</span>.to_string(), <span class="number">0</span>));
+<span class="macro">assert!</span>(! hello(<span class="string">"World"</span>.to_string(), <span class="number">0</span>));</code></pre></div>
+<p>If you need to use the un-memoized function, it is always available as <code>memoized_original_{fn}</code>,
+in this case: <code>memoized_original_hello()</code>.</p>
+<p>Parameters can be ignored by the cache using the <code>Ignore</code> parameter. <code>Ignore</code> can be specified
+multiple times, once per each parameter. <code>Ignore</code>d parameters do not need to implement <a href="https://doc.rust-lang.org/1.87.0/core/clone/trait.Clone.html" title="trait core::clone::Clone"><code>Clone</code></a>
+or <a href="https://doc.rust-lang.org/1.87.0/core/hash/macros/derive.Hash.html" title="derive core::hash::macros::Hash"><code>Hash</code></a>.</p>
+<p>See the <code>examples</code> for concrete applications.</p>
+<p><em>The following descriptions need the <code>full</code> feature enabled.</em></p>
+<p>The <code>memoize</code> attribute can take further parameters in order to use an LRU cache:
+<code>#[memoize(Capacity: 1234)]</code>. In that case, instead of a <code>HashMap</code> we use an <code>lru::LruCache</code>
+with the given capacity.
+<code>#[memoize(TimeToLive: Duration::from_secs(2))]</code>. In that case, cached value will be actual
+no longer than duration provided and refreshed with next request. If you prefer chrono::Duration,
+it can be also used: <code>#[memoize(TimeToLive: chrono::Duration::hours(9).to_std().unwrap()]</code></p>
+<p>You can also specify a custom hasher: <code>#[memoize(CustomHasher: ahash::HashMap)]</code>, as some hashers don’t use a <code>new()</code> method to initialize them, you can also specifiy a <code>HasherInit</code> parameter, like this: <code>#[memoize(CustomHasher: FxHashMap, HasherInit: FxHashMap::default())]</code>, so it will initialize your <code>FxHashMap</code> with <code>FxHashMap::default()</code> insteado of <code>FxHashMap::new()</code></p>
+<p>This mechanism can, in principle, be extended (in the source code) to any other cache mechanism.</p>
+<p><code>memoized_flush_&lt;function name&gt;()</code> allows you to clear the underlying memoization cache of a
+function. This function is generated with the same visibility as the memoized function.</p>
+</div></details></section></div></main></body></html>

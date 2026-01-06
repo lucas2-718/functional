@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["cong","refl","split_path","straight_eq","sym","trans","transport_eq"],"struct":["EqualTheorems"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["bool","ctypes","display","equals","impossible","numbers"]};

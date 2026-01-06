@@ -1,1 +1,4 @@
-/target
+/target/debug
+/target/flycheck0
+/target/release
+/target/.rustc_info.json

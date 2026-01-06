@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["flatten_natural","successor_function","zero_eq_trivial"],"struct":["NatData"]};

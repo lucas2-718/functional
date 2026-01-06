@@ -1,0 +1,150 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src\bool.rs`."><title>bool.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="functional" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../../static.files/storage-82c7156e.js"></script><script defer src="../../static.files/src-script-63605ae7.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">functional/</div>bool.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use crate</span>::{ctypes::{ContainedTerm, FinalTerm, Natural, Res, Scopeless, Term::<span class="kw-2">*</span>, lam_helper, lam_helper_poly, pi_helper, pi_helper_poly}, equals::{cong, refl, straight_eq, transport_eq}, impossible::FalseData, numbers};
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a><span class="doccomment">/// Basic data describing the booleans
+<a href=#4 id=4 data-nosnippet>4</a></span><span class="attr">#[derive(Clone,Debug)]
+<a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">pub struct </span>BoolData {
+<a href=#6 id=6 data-nosnippet>6</a>    <span class="doccomment">/// The trimming function used internally, returns 0 if the input is zero or 1 and otherwise returns 1
+<a href=#7 id=7 data-nosnippet>7</a>    </span><span class="kw">pub </span>trim: FinalTerm,
+<a href=#8 id=8 data-nosnippet>8</a>    <span class="doccomment">/// The type of booleans, a sum requiring trim to be zero
+<a href=#9 id=9 data-nosnippet>9</a>    </span><span class="kw">pub </span>bool_type: FinalTerm,
+<a href=#10 id=10 data-nosnippet>10</a>    <span class="doccomment">/// The false boolean, of type bool_type
+<a href=#11 id=11 data-nosnippet>11</a>    </span><span class="kw">pub </span>bool_false: FinalTerm,
+<a href=#12 id=12 data-nosnippet>12</a>    <span class="doccomment">/// The true boolean, of type bool_type
+<a href=#13 id=13 data-nosnippet>13</a>    </span><span class="kw">pub </span>bool_true: FinalTerm,
+<a href=#14 id=14 data-nosnippet>14</a>    <span class="doccomment">/// The family used in the [Sig] of [BoolData::bool_type]
+<a href=#15 id=15 data-nosnippet>15</a>    </span><span class="kw">pub </span>bool_fam: FinalTerm,
+<a href=#16 id=16 data-nosnippet>16</a>}
+<a href=#17 id=17 data-nosnippet>17</a>
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">impl </span>Scopeless <span class="kw">for </span>BoolData {}
+<a href=#19 id=19 data-nosnippet>19</a>
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">impl </span>BoolData {
+<a href=#21 id=21 data-nosnippet>21</a>    <span class="doccomment">/// Creates a new BoolData instance
+<a href=#22 id=22 data-nosnippet>22</a>    </span><span class="kw">pub fn </span>new() -&gt; Res&lt;BoolData&gt; {
+<a href=#23 id=23 data-nosnippet>23</a>        <span class="comment">// Construct the function trim, which returns 0 if the input is zero or one, and 1 otherwise by repeated pattern matching
+<a href=#24 id=24 data-nosnippet>24</a>        
+<a href=#25 id=25 data-nosnippet>25</a>        </span><span class="kw">let </span>family = Lam(Nat.ctn()<span class="question-mark">?</span>,Nat.ctn()<span class="question-mark">?</span>,<span class="string">"_"</span>.into()).ctn()<span class="question-mark">?</span>;
+<a href=#26 id=26 data-nosnippet>26</a>        <span class="kw">let </span>trim = lam_helper([family], Nat.ctn()<span class="question-mark">?</span>, <span class="string">"n"</span>, |[family],n|{
+<a href=#27 id=27 data-nosnippet>27</a>            App(App(App(NatInd(n, <span class="number">0u8</span>.into()).ctn()<span class="question-mark">?</span>,family.clone()).ctn()<span class="question-mark">?</span>,Zero.ctn()<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>,lam_helper([family], Nat.ctn()<span class="question-mark">?</span>, <span class="string">"n-1"</span>, |[family],n|{
+<a href=#28 id=28 data-nosnippet>28</a>                lam_helper([family,n],Nat.ctn()<span class="question-mark">?</span>,<span class="string">"_"</span>,|[family,n],<span class="kw">_</span>|{
+<a href=#29 id=29 data-nosnippet>29</a>                    App(App(App(NatInd(n, <span class="number">0u8</span>.into()).ctn()<span class="question-mark">?</span>,family.clone()).ctn()<span class="question-mark">?</span>,Zero.ctn()<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>,Lam(Nat.ctn()<span class="question-mark">?</span>,Lam(Nat.ctn()<span class="question-mark">?</span>,Succ(Zero.ctn()<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>,<span class="string">"_"</span>.into()).ctn()<span class="question-mark">?</span>,<span class="string">"n2"</span>.into()).ctn()<span class="question-mark">?</span>).ctn()
+<a href=#30 id=30 data-nosnippet>30</a>                })
+<a href=#31 id=31 data-nosnippet>31</a>            })<span class="question-mark">?</span>).ctn()
+<a href=#32 id=32 data-nosnippet>32</a>        })<span class="question-mark">?</span>;
+<a href=#33 id=33 data-nosnippet>33</a>
+<a href=#34 id=34 data-nosnippet>34</a>        <span class="kw">let </span>bfam = lam_helper([trim.clone()], Nat.ctn()<span class="question-mark">?</span>, <span class="string">"n"</span>, |[trim],n|{
+<a href=#35 id=35 data-nosnippet>35</a>            straight_eq(Zero.ctn()<span class="question-mark">?</span>, App(trim,n).ctn()<span class="question-mark">?</span>)
+<a href=#36 id=36 data-nosnippet>36</a>        })<span class="question-mark">?</span>;
+<a href=#37 id=37 data-nosnippet>37</a>
+<a href=#38 id=38 data-nosnippet>38</a>        <span class="kw">let </span>bool_type = Sig(bfam.clone()).ctn()<span class="question-mark">?</span>.fin()<span class="question-mark">?</span>;
+<a href=#39 id=39 data-nosnippet>39</a>
+<a href=#40 id=40 data-nosnippet>40</a>        <span class="kw">let </span>bool_false = Pair(bfam.clone(), Zero.ctn()<span class="question-mark">?</span>, refl(Zero.ctn()<span class="question-mark">?</span>)<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>.fin()<span class="question-mark">?</span>;
+<a href=#41 id=41 data-nosnippet>41</a>
+<a href=#42 id=42 data-nosnippet>42</a>        <span class="kw">let </span>bool_true = Pair(bfam.clone(), Succ(Zero.ctn()<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>, refl(Zero.ctn()<span class="question-mark">?</span>)<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>.fin()<span class="question-mark">?</span>;
+<a href=#43 id=43 data-nosnippet>43</a>
+<a href=#44 id=44 data-nosnippet>44</a>        <span class="kw">let </span>trim = trim.fin()<span class="question-mark">?</span>;
+<a href=#45 id=45 data-nosnippet>45</a>
+<a href=#46 id=46 data-nosnippet>46</a>        <span class="prelude-val">Ok</span>(BoolData { trim, bool_type, bool_false, bool_true, bool_fam: bfam.fin()<span class="question-mark">? </span>})
+<a href=#47 id=47 data-nosnippet>47</a>    }
+<a href=#48 id=48 data-nosnippet>48</a>    <span class="doccomment">/// Runs the boolean induction principle on a specific instance of a boolean
+<a href=#49 id=49 data-nosnippet>49</a>    </span><span class="kw">pub fn </span>bool_ind(<span class="kw-2">&amp;</span><span class="self">self</span>, b: ContainedTerm, n: Natural) -&gt; Res&lt;ContainedTerm&gt; {
+<a href=#50 id=50 data-nosnippet>50</a>        <span class="kw">let </span>famtype = pi_helper_poly([], <span class="self">self</span>.bool_type.get(), <span class="string">"_"</span>, [n], |[],<span class="kw">_</span>,[n]|{Universe(n).ctn()})<span class="question-mark">?</span>;
+<a href=#51 id=51 data-nosnippet>51</a>        <span class="kw">let </span>ind = lam_helper_poly([b,<span class="self">self</span>.trim.get(),<span class="self">self</span>.bool_false.get(),<span class="self">self</span>.bool_true.get(),<span class="self">self</span>.bool_fam.get()], famtype, <span class="string">"fam"</span>, [n], |[b,trim,bfalse,btrue,bfam],fam,[n]|{
+<a href=#52 id=52 data-nosnippet>52</a>            <span class="kw">let </span>true_family = lam_helper([fam.clone(),bfalse.clone(),btrue.clone()], Sig(bfam.clone()).ctn()<span class="question-mark">?</span>, <span class="string">"b"</span>, |[fam,bfalse,btrue],b|{
+<a href=#53 id=53 data-nosnippet>53</a>                pi_helper([btrue,fam.clone(),b], App(fam,bfalse).ctn()<span class="question-mark">?</span>, <span class="string">"vf"</span>, |[btrue,fam,b],<span class="kw">_</span>|{
+<a href=#54 id=54 data-nosnippet>54</a>                    pi_helper([fam.clone(),b], App(fam,btrue).ctn()<span class="question-mark">?</span>, <span class="string">"vt"</span>, |[fam,b],<span class="kw">_</span>|{
+<a href=#55 id=55 data-nosnippet>55</a>                        App(fam,b).ctn()
+<a href=#56 id=56 data-nosnippet>56</a>                    })
+<a href=#57 id=57 data-nosnippet>57</a>                })
+<a href=#58 id=58 data-nosnippet>58</a>            })<span class="question-mark">?</span>;
+<a href=#59 id=59 data-nosnippet>59</a>            App(App(SigInd(b, n).ctn()<span class="question-mark">?</span>,true_family.clone()).ctn()<span class="question-mark">?</span>,lam_helper_poly([trim,fam,bfalse,btrue,bfam], Nat.ctn()<span class="question-mark">?</span>, <span class="string">"n"</span>, [n],|[trim,fam,bfalse,btrue,bfam],n,[u]|{
+<a href=#60 id=60 data-nosnippet>60</a>                <span class="comment">// Goal : (hyp: 0 = trim n) -&gt; fam (0, refl 0) -&gt; fam (1, refl 0) -&gt; fam (n, hyp)
+<a href=#61 id=61 data-nosnippet>61</a>                // how to prove goal
+<a href=#62 id=62 data-nosnippet>62</a>                // matching on goal
+<a href=#63 id=63 data-nosnippet>63</a>                // (hyp : 0 = 0) -&gt; (vf: fam (0, refl 0)) -&gt; (vt: fam (1, refl 0)) : fam (0, hyp) := transport vt over refl 0 = hyp
+<a href=#64 id=64 data-nosnippet>64</a>                // (hyp : 0 = 0) -&gt; (vf: fam (0, refl 0)) -&gt; (vt: fam (1, refl 0)) : fam (1, hyp) := transport vt over refl 0 = hyp
+<a href=#65 id=65 data-nosnippet>65</a>                // (hyp : 0 = 1) : (vf: fam (0, refl 0)) -&gt; (vt: fam (1, refl 0)) -&gt; fam (2 + n, hyp) := exfalso into the family
+<a href=#66 id=66 data-nosnippet>66</a>                </span><span class="kw">let </span>indfam = lam_helper([bfalse.clone(),btrue.clone(),fam.clone(),trim,bfam.clone()], Nat.ctn()<span class="question-mark">?</span>, <span class="string">"n"</span>, |[bfalse,btrue,fam,trim,bfam],n|{
+<a href=#67 id=67 data-nosnippet>67</a>                    pi_helper([n.clone(),bfalse,btrue,fam,bfam], straight_eq(Zero.ctn()<span class="question-mark">?</span>,App(trim,n).ctn()<span class="question-mark">?</span>)<span class="question-mark">?</span>, <span class="string">"hyp"</span>, |[n,bfalse,btrue,fam,bfam],hyp|{
+<a href=#68 id=68 data-nosnippet>68</a>                        pi_helper([n.clone(),btrue,fam.clone(),bfam,hyp],App(fam,bfalse).ctn()<span class="question-mark">?</span>,<span class="string">"vf"</span>,|[n,btrue,fam,bfam,hyp],<span class="kw">_</span>|{
+<a href=#69 id=69 data-nosnippet>69</a>                            pi_helper([n.clone(),fam.clone(),bfam,hyp], App(fam,btrue).ctn()<span class="question-mark">?</span>, <span class="string">"vt"</span>, |[n,fam,bfam,hyp],<span class="kw">_</span>|{
+<a href=#70 id=70 data-nosnippet>70</a>                                App(fam,Pair(bfam,n,hyp).ctn()<span class="question-mark">?</span>).ctn()
+<a href=#71 id=71 data-nosnippet>71</a>                            })
+<a href=#72 id=72 data-nosnippet>72</a>                        })
+<a href=#73 id=73 data-nosnippet>73</a>                    })
+<a href=#74 id=74 data-nosnippet>74</a>                })<span class="question-mark">?</span>;
+<a href=#75 id=75 data-nosnippet>75</a>                
+<a href=#76 id=76 data-nosnippet>76</a>                <span class="kw">let </span>fam0 = lam_helper([bfalse.clone(),btrue.clone(),bfam.clone(),fam.clone()],straight_eq(Zero.ctn()<span class="question-mark">?</span>, Zero.ctn()<span class="question-mark">?</span>)<span class="question-mark">?</span>,<span class="string">"hyp"</span>,|[bfalse,btrue,bfam,fam],hyp|{
+<a href=#77 id=77 data-nosnippet>77</a>                    lam_helper([btrue,bfam,fam.clone(),hyp],App(fam,bfalse).ctn()<span class="question-mark">?</span>,<span class="string">"vf"</span>,|[btrue,bfam,fam,hyp],vf|{
+<a href=#78 id=78 data-nosnippet>78</a>                        lam_helper([bfam,fam.clone(),hyp,vf], App(fam,btrue).ctn()<span class="question-mark">?</span>, <span class="string">"vt"</span>, |[bfam,fam,hyp,vf],<span class="kw">_</span>|{
+<a href=#79 id=79 data-nosnippet>79</a>                            <span class="comment">// goal = fam (0, hyp)
+<a href=#80 id=80 data-nosnippet>80</a>                            // have = fam (0, refl 0)
+<a href=#81 id=81 data-nosnippet>81</a>                            // refl = hyp
+<a href=#82 id=82 data-nosnippet>82</a>                            </span><span class="kw">let </span>refl_hyp = App(numbers::zero_eq_trivial()<span class="question-mark">?</span>.get(),hyp).ctn()<span class="question-mark">?</span>;
+<a href=#83 id=83 data-nosnippet>83</a>                            <span class="comment">// h =&gt; fam (0 , h)
+<a href=#84 id=84 data-nosnippet>84</a>                            </span><span class="kw">let </span>cong_func = lam_helper([fam,bfam],straight_eq(Zero.ctn()<span class="question-mark">?</span>, Zero.ctn()<span class="question-mark">?</span>)<span class="question-mark">?</span>,<span class="string">"hyp"</span>,|[fam,bfam],hyp|{
+<a href=#85 id=85 data-nosnippet>85</a>                                App(fam,Pair(bfam,Zero.ctn()<span class="question-mark">?</span>,hyp).ctn()<span class="question-mark">?</span>).ctn()
+<a href=#86 id=86 data-nosnippet>86</a>                            })<span class="question-mark">?</span>;
+<a href=#87 id=87 data-nosnippet>87</a>                            <span class="comment">// have = goal
+<a href=#88 id=88 data-nosnippet>88</a>                            </span><span class="kw">let </span>path = cong(cong_func, refl_hyp)<span class="question-mark">?</span>;
+<a href=#89 id=89 data-nosnippet>89</a>                            transport_eq(path,vf)
+<a href=#90 id=90 data-nosnippet>90</a>                        })
+<a href=#91 id=91 data-nosnippet>91</a>                    })
+<a href=#92 id=92 data-nosnippet>92</a>                })<span class="question-mark">?</span>;
+<a href=#93 id=93 data-nosnippet>93</a>
+<a href=#94 id=94 data-nosnippet>94</a>                <span class="kw">let </span>fam1 = lam_helper([bfalse.clone(),btrue.clone(),bfam.clone(),fam.clone()],straight_eq(Zero.ctn()<span class="question-mark">?</span>, Zero.ctn()<span class="question-mark">?</span>)<span class="question-mark">?</span>,<span class="string">"hyp"</span>,|[bfalse,btrue,bfam,fam],hyp|{
+<a href=#95 id=95 data-nosnippet>95</a>                    lam_helper([btrue,bfam,fam.clone(),hyp],App(fam,bfalse).ctn()<span class="question-mark">?</span>,<span class="string">"vf"</span>,|[btrue,bfam,fam,hyp],<span class="kw">_</span>|{
+<a href=#96 id=96 data-nosnippet>96</a>                        lam_helper([bfam,fam.clone(),hyp], App(fam,btrue).ctn()<span class="question-mark">?</span>, <span class="string">"vt"</span>, |[bfam,fam,hyp],vt|{
+<a href=#97 id=97 data-nosnippet>97</a>                            <span class="comment">// goal = fam (1, hyp)
+<a href=#98 id=98 data-nosnippet>98</a>                            // have = fam (1, refl 0)
+<a href=#99 id=99 data-nosnippet>99</a>                            // refl = hyp
+<a href=#100 id=100 data-nosnippet>100</a>                            </span><span class="kw">let </span>refl_hyp = App(numbers::zero_eq_trivial()<span class="question-mark">?</span>.get(),hyp).ctn()<span class="question-mark">?</span>;
+<a href=#101 id=101 data-nosnippet>101</a>                            <span class="comment">// h =&gt; fam (0 , h)
+<a href=#102 id=102 data-nosnippet>102</a>                            </span><span class="kw">let </span>cong_func = lam_helper([fam,bfam],straight_eq(Zero.ctn()<span class="question-mark">?</span>, Zero.ctn()<span class="question-mark">?</span>)<span class="question-mark">?</span>,<span class="string">"hyp"</span>,|[fam,bfam],hyp|{
+<a href=#103 id=103 data-nosnippet>103</a>                                App(fam,Pair(bfam,Succ(Zero.ctn()<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>,hyp).ctn()<span class="question-mark">?</span>).ctn()
+<a href=#104 id=104 data-nosnippet>104</a>                            })<span class="question-mark">?</span>;
+<a href=#105 id=105 data-nosnippet>105</a>                            <span class="comment">// have = goal
+<a href=#106 id=106 data-nosnippet>106</a>                            </span><span class="kw">let </span>path = cong(cong_func, refl_hyp)<span class="question-mark">?</span>;
+<a href=#107 id=107 data-nosnippet>107</a>                            transport_eq(path,vt)
+<a href=#108 id=108 data-nosnippet>108</a>                        })
+<a href=#109 id=109 data-nosnippet>109</a>                    })
+<a href=#110 id=110 data-nosnippet>110</a>                })<span class="question-mark">?</span>;
+<a href=#111 id=111 data-nosnippet>111</a>
+<a href=#112 id=112 data-nosnippet>112</a>                <span class="kw">let </span>fam2 = lam_helper([bfalse,btrue,bfam,fam.clone()],Nat.ctn()<span class="question-mark">?</span>,<span class="string">"n2"</span>,|[bfalse,btrue,bfam,fam],n2|{
+<a href=#113 id=113 data-nosnippet>113</a>                    lam_helper([bfalse,btrue,bfam,fam,n2], straight_eq(Zero.ctn()<span class="question-mark">?</span>, Succ(Zero.ctn()<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>)<span class="question-mark">?</span>, <span class="string">"hyp"</span>, |[bfalse,btrue,bfam,fam,n2],hyp|{
+<a href=#114 id=114 data-nosnippet>114</a>                        <span class="kw">let </span>n = Succ(Succ(n2).ctn()<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>;
+<a href=#115 id=115 data-nosnippet>115</a>                        <span class="kw">let </span>target = pi_helper([n.clone(),btrue,fam.clone(),bfam,hyp.clone()],App(fam,bfalse).ctn()<span class="question-mark">?</span>,<span class="string">"vf"</span>,|[n,btrue,fam,bfam,hyp],<span class="kw">_</span>|{
+<a href=#116 id=116 data-nosnippet>116</a>                            pi_helper([n.clone(),fam.clone(),bfam,hyp], App(fam,btrue).ctn()<span class="question-mark">?</span>, <span class="string">"vt"</span>, |[n,fam,bfam,hyp],<span class="kw">_</span>|{
+<a href=#117 id=117 data-nosnippet>117</a>                                App(fam,Pair(bfam,n,hyp).ctn()<span class="question-mark">?</span>).ctn()
+<a href=#118 id=118 data-nosnippet>118</a>                            })
+<a href=#119 id=119 data-nosnippet>119</a>                        })<span class="question-mark">?</span>;
+<a href=#120 id=120 data-nosnippet>120</a>                        App(FalseData::new()<span class="question-mark">?</span>.exfalso(target)<span class="question-mark">?</span>,hyp).ctn()
+<a href=#121 id=121 data-nosnippet>121</a>                    })
+<a href=#122 id=122 data-nosnippet>122</a>                })<span class="question-mark">?</span>;
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a>
+<a href=#125 id=125 data-nosnippet>125</a>                <span class="kw">let </span>partial = App(App(App(NatInd(n, u).ctn()<span class="question-mark">?</span>,indfam.clone()).ctn()<span class="question-mark">?</span>,fam0).ctn()<span class="question-mark">?</span>,lam_helper_poly([fam1,fam2,indfam], Nat.ctn()<span class="question-mark">?</span>, <span class="string">"n1"</span>, [u],|[fam1,fam2,indfam],n1,[u]|{
+<a href=#126 id=126 data-nosnippet>126</a>                    <span class="kw">let </span>new_indfam = lam_helper([indfam.clone()], Nat.ctn()<span class="question-mark">?</span>, <span class="string">"n"</span>,|[indfam],n|{
+<a href=#127 id=127 data-nosnippet>127</a>                        App(indfam,Succ(n).ctn()<span class="question-mark">?</span>).ctn()
+<a href=#128 id=128 data-nosnippet>128</a>                    })<span class="question-mark">?</span>;
+<a href=#129 id=129 data-nosnippet>129</a>                    lam_helper_poly([fam1,fam2,new_indfam.clone(),n1.clone()], App(indfam,n1).ctn()<span class="question-mark">?</span>, <span class="string">"_"</span>, [u],|[fam1,fam2,indfam,n1],<span class="kw">_</span>,[u]|{
+<a href=#130 id=130 data-nosnippet>130</a>                        App(App(App(NatInd(n1, u).ctn()<span class="question-mark">?</span>,indfam.clone()).ctn()<span class="question-mark">?</span>,fam1).ctn()<span class="question-mark">?</span>,lam_helper([fam2,indfam], Nat.ctn()<span class="question-mark">?</span>, <span class="string">"n2"</span>, |[fam2,indfam],n2|{
+<a href=#131 id=131 data-nosnippet>131</a>                            lam_helper([fam2,n2.clone()],App(indfam,n2).ctn()<span class="question-mark">?</span>,<span class="string">"_"</span>,|[fam2,n2],<span class="kw">_</span>|{
+<a href=#132 id=132 data-nosnippet>132</a>                                App(fam2,n2).ctn()
+<a href=#133 id=133 data-nosnippet>133</a>                            })
+<a href=#134 id=134 data-nosnippet>134</a>                        })<span class="question-mark">?</span>).ctn()
+<a href=#135 id=135 data-nosnippet>135</a>                    })
+<a href=#136 id=136 data-nosnippet>136</a>                })<span class="question-mark">?</span>).ctn()<span class="question-mark">?</span>;
+<a href=#137 id=137 data-nosnippet>137</a>                
+<a href=#138 id=138 data-nosnippet>138</a>                <span class="prelude-val">Ok</span>(partial)
+<a href=#139 id=139 data-nosnippet>139</a>            })<span class="question-mark">?</span>).ctn()
+<a href=#140 id=140 data-nosnippet>140</a>        })<span class="question-mark">?</span>;
+<a href=#141 id=141 data-nosnippet>141</a>        
+<a href=#142 id=142 data-nosnippet>142</a>        <span class="prelude-val">Ok</span>(ind)
+<a href=#143 id=143 data-nosnippet>143</a>    }
+<a href=#144 id=144 data-nosnippet>144</a>    <span class="doccomment">/// Creates the boolean induction principle on a specific universe level
+<a href=#145 id=145 data-nosnippet>145</a>    </span><span class="kw">pub fn </span>generic_bool_ind(<span class="kw-2">&amp;</span><span class="self">self</span>, n: Natural) -&gt; Res&lt;FinalTerm&gt; {
+<a href=#146 id=146 data-nosnippet>146</a>        lam_helper_poly([], <span class="self">self</span>.bool_type.get(), <span class="string">"b"</span>, (<span class="self">self</span>.clone(),n), |[],b,(this,n)|{
+<a href=#147 id=147 data-nosnippet>147</a>            this.bool_ind(b, n)
+<a href=#148 id=148 data-nosnippet>148</a>        })<span class="question-mark">?</span>.fin()
+<a href=#149 id=149 data-nosnippet>149</a>    }
+<a href=#150 id=150 data-nosnippet>150</a>}</code></pre></div></section></main></body></html>

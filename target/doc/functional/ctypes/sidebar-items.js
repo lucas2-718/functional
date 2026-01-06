@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Term"],"fn":["check","err_str","err_string","lam_helper","lam_helper_poly","num","opt_err","pi_helper","pi_helper_poly","sig_ex0","sig_ex1","unwrap_natural"],"struct":["ContainedTerm","ErrorType","FinalTerm","Naming","Natural"],"trait":["Blame","Scopeless"],"type":["Res"]};
